@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS radacct (
 CREATE INDEX idx_radacct_username      ON radacct (username);
 CREATE INDEX idx_radacct_acctsessionid ON radacct (acctsessionid);
 CREATE INDEX idx_radacct_acctstarttime ON radacct (acctstarttime);
-
+CREATE UNIQUE INDEX idx_radacct_acctuniqueid ON radacct (acctuniqueid);
 
 -- NAS (Network Access Server) tanımları
 -- Hangi switch/AP sisteme bağlanabilir
