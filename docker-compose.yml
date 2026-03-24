@@ -1,0 +1,110 @@
+services:
+
+
+  # 1. PostgreSQL — kullanıcı ve oturum verisi
+  postgres:
+    image: postgres:18-alpine
+    container_name: nac_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - nac_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  # 2. Redis — session cache ve rate limiting
+  redis:
+    image: redis:8-alpine
+    container_name: nac_redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    networks:
+      - nac_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  # 3. FastAPI — policy engine
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: nac_api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      API_SECRET_KEY: ${API_SECRET_KEY}
+    volumes:
+      - ./api:/app
+    networks:
+      - nac_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+
+  # 4. FreeRADIUS — RADIUS sunucusu
+  freeradius:
+    image: freeradius/freeradius-server:latest-3.2
+    container_name: nac_freeradius
+    restart: unless-stopped
+    ports:
+      - "1812:1812/udp"
+      - "1813:1813/udp"
+    environment:
+      RADIUS_SHARED_SECRET: ${RADIUS_SHARED_SECRET}
+    volumes:
+      - ./freeradius:/etc/freeradius/3.0
+    networks:
+      - nac_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "radtest", "healthcheck", "healthcheck", "localhost", "0", "testing123"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+
+# Network — servisler arası iletişim
+networks:
+  nac_network:
+    driver: bridge
+
+
+# Volumes — kalıcı veri depolama
+volumes:
+  postgres_data:
+  redis_data:
