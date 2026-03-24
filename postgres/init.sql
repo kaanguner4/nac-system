@@ -1,29 +1,30 @@
--- RADIUS kullanıcı bilgileri 
--- Her satır bir kullanıcı + attribute seti içerir
+-- RADIUS kullanıcı kimlik bilgileri
+-- Her satır bir kullanıcı + attribute çifti
 CREATE TABLE IF NOT EXISTS radcheck (
     id          SERIAL PRIMARY KEY,
     username    VARCHAR(64) NOT NULL DEFAULT '',
     attribute   VARCHAR(64) NOT NULL DEFAULT '',
-    op          CHAR(2) NOT NULL DEFAULT '==',
-    value       VARCHAR(255) NOT NULL DEFAULT ''
+    op          CHAR(2)     NOT NULL DEFAULT '==',
+    value       VARCHAR(253) NOT NULL DEFAULT ''
 );
+
+CREATE INDEX idx_radcheck_username ON radcheck (username);
 
 
 -- Kullanıcıya dönecek RADIUS attribute'ları
--- ÖRN: VLAN, session timeout, vs.
+-- Örn: VLAN, Session-Timeout
 CREATE TABLE IF NOT EXISTS radreply (
     id          SERIAL PRIMARY KEY,
     username    VARCHAR(64) NOT NULL DEFAULT '',
     attribute   VARCHAR(64) NOT NULL DEFAULT '',
-    op          CHAR(2) NOT NULL DEFAULT '==',
-    value       VARCHAR(255) NOT NULL DEFAULT ''
+    op          CHAR(2)     NOT NULL DEFAULT '=',
+    value       VARCHAR(253) NOT NULL DEFAULT ''
 );
 
 CREATE INDEX idx_radreply_username ON radreply (username);
 
 
--- Kullanıcı -> grup ilişkisi 
--- (örneğin: "network-admins" grubu)
+-- Kullanıcı → Grup ilişkisi
 CREATE TABLE IF NOT EXISTS radusergroup (
     id          SERIAL PRIMARY KEY,
     username    VARCHAR(64) NOT NULL DEFAULT '',
@@ -34,20 +35,20 @@ CREATE TABLE IF NOT EXISTS radusergroup (
 CREATE INDEX idx_radusergroup_username ON radusergroup (username);
 
 
--- Grup bazlı RADIUS attribute'ları 
--- (örneğin: "network-admins" grubuna özel VLAN10 ataması)
+-- Grup bazlı RADIUS attribute'ları
+-- Örn: admin grubuna VLAN 10 ata
 CREATE TABLE IF NOT EXISTS radgroupreply (
     id          SERIAL PRIMARY KEY,
     groupname   VARCHAR(64) NOT NULL DEFAULT '',
     attribute   VARCHAR(64) NOT NULL DEFAULT '',
-    op          CHAR(2) NOT NULL DEFAULT '==',
-    value       VARCHAR(255) NOT NULL DEFAULT ''
+    op          CHAR(2)     NOT NULL DEFAULT '=',
+    value       VARCHAR(253) NOT NULL DEFAULT ''
 );
 
 CREATE INDEX idx_radgroupreply_groupname ON radgroupreply (groupname);
 
 
--- Accounting kayıtları 
+-- Accounting kayıtları
 -- Her oturum için bir satır
 CREATE TABLE IF NOT EXISTS radacct (
     radacctid           BIGSERIAL PRIMARY KEY,
@@ -72,12 +73,13 @@ CREATE TABLE IF NOT EXISTS radacct (
     acctstartdelay      INTEGER      DEFAULT NULL
 );
 
-CREATE INDEX idx_radacct_username ON radacct (username);
+CREATE INDEX idx_radacct_username      ON radacct (username);
 CREATE INDEX idx_radacct_acctsessionid ON radacct (acctsessionid);
 CREATE INDEX idx_radacct_acctstarttime ON radacct (acctstarttime);
 
 
--- NAS (Network Access Server) bilgileri / Hangi switch/AP sisteme bağlanabilir
+-- NAS (Network Access Server) tanımları
+-- Hangi switch/AP sisteme bağlanabilir
 CREATE TABLE IF NOT EXISTS nas (
     id          SERIAL PRIMARY KEY,
     nasname     VARCHAR(128) NOT NULL,
@@ -91,12 +93,7 @@ CREATE TABLE IF NOT EXISTS nas (
 
 
 
-
-
-
-
--- TEST DATA
-
+-- TEST VERİLERİ
 
 -- Gruplar ve VLAN atamaları
 INSERT INTO radgroupreply (groupname, attribute, op, value) VALUES
@@ -111,7 +108,7 @@ INSERT INTO radgroupreply (groupname, attribute, op, value) VALUES
     ('guest',    'Tunnel-Private-Group-Id', ':=', '30');
 
 
--- TEST KULLANICILAR
+-- Test kullanıcıları
 -- NOT: Şifreler ilerleyen adımda hash'lenecek, şimdilik plaintext — sadece test amaçlı
 INSERT INTO radcheck (username, attribute, op, value) VALUES
     ('admin01',   'Cleartext-Password', ':=', 'admin123'),
@@ -119,7 +116,7 @@ INSERT INTO radcheck (username, attribute, op, value) VALUES
     ('guest01',   'Cleartext-Password', ':=', 'guest123');
 
 
--- Kullanıcı-grup ilişkisi
+-- Kullanıcıları gruplara bağla
 INSERT INTO radusergroup (username, groupname, priority) VALUES
     ('admin01',    'admin',    1),
     ('employee01', 'employee', 1),
