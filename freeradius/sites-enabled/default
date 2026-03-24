@@ -1,0 +1,74 @@
+server default {
+
+    listen {
+        type   = auth
+        ipaddr = *
+        port   = 1812
+    }
+
+    listen {
+        type   = acct
+        ipaddr = *
+        port   = 1813
+    }
+
+    # ─────────────────────────────────────────
+    # AUTHORIZE — kim bu kullanıcı, hangi gruba giriyor?
+    # ─────────────────────────────────────────
+    authorize {
+        filter_username
+        preprocess
+
+        # MAB tespiti — username MAC adresi formatındaysa
+        if ("%{User-Name}" =~ /^([0-9a-f]{2}[:-]){5}[0-9a-f]{2}$/i) {
+            update request {
+                Auth-Type := Accept
+            }
+        }
+
+        # FastAPI'ye sor — VLAN bilgisini al
+        rest
+
+        # PostgreSQL'den kullanıcı/grup bilgisini al
+        sql
+
+        if (!ok) {
+            reject
+        }
+    }
+
+    # ─────────────────────────────────────────
+    # AUTHENTICATE — şifre doğru mu?
+    # ─────────────────────────────────────────
+    authenticate {
+
+        # Normal PAP girişi — FastAPI /auth'a sor
+        Auth-Type PAP {
+            rest
+        }
+
+        # MAB girişi — MAC kayıtlıysa direkt kabul
+        Auth-Type Accept {
+            ok
+        }
+    }
+
+    # ─────────────────────────────────────────
+    # ACCOUNTING — oturum verisi kaydet
+    # ─────────────────────────────────────────
+    accounting {
+        rest
+        sql
+    }
+
+    # ─────────────────────────────────────────
+    # POST-AUTH — giriş sonrası işlemler
+    # ─────────────────────────────────────────
+    post-auth {
+        sql
+
+        Post-Auth-Type REJECT {
+            sql
+        }
+    }
+}
