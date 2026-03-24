@@ -1,0 +1,32 @@
+sql {
+    dialect     = "postgresql"
+    driver      = "rlm_sql_postgresql"
+
+    server      = "postgres"
+    port        = 5432
+    login       = "radius"
+    password    = "radiuspassword"
+    radius_db   = "radius"
+
+    acct_table1         = "radacct"
+    acct_table2         = "radacct"
+    authcheck_table     = "radcheck"
+    authreply_table     = "radreply"
+    groupcheck_table    = "radgroupcheck"
+    groupreply_table    = "radgroupreply"
+    usergroup_table     = "radusergroup"
+
+    read_groups         = yes
+    deletestalesessions = yes
+    sqltrace            = no
+
+    pool {
+        start        = 5
+        min          = 4
+        max          = 10
+        spare        = 3
+        idle_timeout = 60
+        lifetime     = 0
+        retry_delay  = 30
+    }
+}
