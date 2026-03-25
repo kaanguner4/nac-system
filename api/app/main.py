@@ -1,14 +1,19 @@
 import logging
+from pathlib import Path
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
+from fastapi.staticfiles import StaticFiles
 
 from app.db.postgres import get_active_accounting_sessions, init_db, close_db
 from app.db.redis import clear_all_sessions, init_redis, close_redis, set_session
 from app.routes.auth import router as auth_router
 from app.routes.accounting import router as accounting_router
+from app.routes.dashboard_api import router as dashboard_api_router
 from app.routes.users import router as users_router
+from app.routes.dashboard import router as dashboard_router
 
 logger = logging.getLogger(__name__)
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
 async def restore_active_session_cache():
@@ -62,6 +67,9 @@ app = FastAPI(
 app.include_router(auth_router)
 app.include_router(accounting_router)
 app.include_router(users_router)
+app.include_router(dashboard_api_router)
+app.include_router(dashboard_router)
+app.mount("/dashboard-assets", StaticFiles(directory=STATIC_DIR), name="dashboard_assets")
 
 @app.get("/health")
 async def health_check():

@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NAC Network Access Terminal</title>
+    <link rel="stylesheet" href="/dashboard-assets/dashboard.css" />
+  </head>
+  <body>
+    <div class="toast" id="toast"></div>
+
+    <div class="screen active" id="boot-screen">
+      <div class="bios-header">
+        <div class="bios-title">S3M SECURITY // NAC TERMINAL v3.2.1</div>
+      </div>
+      <div class="boot-log" id="boot-log"></div>
+    </div>
+
+    <div class="screen" id="login-screen">
+      <div class="grid-overlay"></div>
+      <div class="login-box">
+        <div class="frame-corner tl"></div>
+        <div class="frame-corner tr"></div>
+        <div class="frame-corner bl"></div>
+        <div class="frame-corner br"></div>
+
+        <div class="login-header">
+          <div>
+            <div class="login-logo">NAC//TERMINAL</div>
+            <div class="login-subtitle">NETWORK ACCESS CONTROL // LIVE BACKEND MODE</div>
+          </div>
+        </div>
+
+        <div class="login-body">
+          <div class="quick-label">QUICK LOGIN</div>
+          <div class="quick-row">
+            <button class="quick-btn" type="button" data-quick="admin">ADMIN</button>
+            <button class="quick-btn" type="button" data-quick="employee">EMPLOYEE</button>
+            <button class="quick-btn" type="button" data-quick="guest">GUEST</button>
+            <button class="quick-btn" type="button" data-quick="mab">MAB</button>
+          </div>
+
+          <div class="field-row">
+            <label class="field-label" for="login-username">USERNAME / MAC</label>
+            <input id="login-username" class="field-input" type="text" autocomplete="off" />
+          </div>
+
+          <div class="field-row">
+            <label class="field-label" for="login-password">PASSWORD</label>
+            <input id="login-password" class="field-input" type="password" autocomplete="off" />
+          </div>
+
+          <div class="field-row">
+            <label class="field-label" for="login-calling-station">CALLING-STATION-ID</label>
+            <input
+              id="login-calling-station"
+              class="field-input"
+              type="text"
+              placeholder="MAB icin MAC, PAP icin bos birak"
+              autocomplete="off"
+            />
+          </div>
+
+          <button class="auth-btn" id="login-button" type="button">AUTHENTICATE</button>
+        </div>
+
+        <div class="status-bar">
+          <span id="connection-status">CHECKING API STATUS...</span>
+          <span>READY <span class="blink">_</span></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen" id="handshake-screen">
+      <div class="handshake-box">
+        <div class="handshake-title">RADIUS / REST AUTHENTICATION EXCHANGE</div>
+
+        <div class="handshake-diagram">
+          <div class="handshake-node">
+            <div class="node-icon">CLIENT</div>
+            <div class="node-name">SUPPLICANT</div>
+            <div class="node-meta" id="handshake-user">-</div>
+          </div>
+
+          <div class="handshake-packets" id="handshake-packets"></div>
+
+          <div class="handshake-node">
+            <div class="node-icon">NAC</div>
+            <div class="node-name">POLICY ENGINE</div>
+            <div class="node-meta">FASTAPI + FREERADIUS</div>
+          </div>
+        </div>
+
+        <div class="handshake-log" id="handshake-log"></div>
+      </div>
+    </div>
+
+    <div class="screen" id="dashboard-screen">
+      <div class="topbar">
+        <div class="topbar-logo">NAC//ACCESS GRANTED</div>
+        <div class="topbar-user">
+          USER <span id="viewer-username">-</span> / ROLE <span id="viewer-role">-</span>
+        </div>
+        <div class="topbar-session" id="viewer-session-timer">00:00:00</div>
+        <button class="logout-btn" id="logout-button" type="button">DISCONNECT</button>
+      </div>
+
+      <div class="network-strip">
+        <div class="network-visual">
+          <div class="network-node">
+            <span class="network-icon">CLIENT</span>
+            <span id="network-device-label">DEVICE</span>
+          </div>
+          <div class="network-line"></div>
+          <div class="network-node">
+            <span class="network-icon">SWITCH</span>
+            <span>ACCESS PORT</span>
+          </div>
+          <div class="network-line"></div>
+          <div class="network-node">
+            <span class="network-icon">VLAN</span>
+            <span id="network-vlan-label">VLAN -</span>
+          </div>
+          <div class="network-line"></div>
+          <div class="network-node">
+            <span class="network-icon">NAC</span>
+            <span>AAA CORE</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="dashboard-body">
+        <aside class="sidebar">
+          <section class="card">
+            <div class="card-title">IDENTITY</div>
+            <div class="profile-avatar" id="profile-avatar">?</div>
+            <div class="profile-name" id="profile-name">-</div>
+            <div class="profile-role-badge" id="profile-role-badge">UNKNOWN</div>
+            <div id="profile-info"></div>
+          </section>
+
+          <section class="card">
+            <div class="card-title">PACKET LOG</div>
+            <div class="packet-log" id="packet-log"></div>
+          </section>
+        </aside>
+
+        <section class="main-panel">
+          <div class="main-grid">
+            <section class="card">
+              <div class="card-title">ASSIGNED VLAN</div>
+              <div class="vlan-display">
+                <div class="vlan-number" id="vlan-number">-</div>
+                <div class="vlan-label">TUNNEL-PRIVATE-GROUP-ID</div>
+              </div>
+            </section>
+
+            <section class="card">
+              <div class="card-title">RADIUS ATTRIBUTES</div>
+              <table class="attr-table" id="radius-attr-table"></table>
+            </section>
+
+            <section class="card full">
+              <div class="card-title">ACCESS POLICY</div>
+              <div class="permission-grid" id="permission-grid"></div>
+            </section>
+
+            <section class="card full">
+              <div class="card-title">SESSION DETAILS</div>
+              <div id="session-info"></div>
+            </section>
+          </div>
+
+          <section class="admin-shell" id="admin-shell" hidden>
+            <div class="admin-header">
+              <div>
+                <div class="card-title compact">NETWORK OPERATIONS</div>
+                <h2>Admin visibility and provisioning</h2>
+              </div>
+              <div class="admin-meta" id="admin-meta">Live backend data</div>
+            </div>
+
+            <div class="summary-grid">
+              <div class="summary-card">
+                <span>TOTAL USERS</span>
+                <strong id="summary-total-users">0</strong>
+              </div>
+              <div class="summary-card">
+                <span>ACTIVE USERS</span>
+                <strong id="summary-active-users">0</strong>
+              </div>
+              <div class="summary-card">
+                <span>BLOCKED USERS</span>
+                <strong id="summary-blocked-users">0</strong>
+              </div>
+              <div class="summary-card">
+                <span>ACTIVE SESSIONS</span>
+                <strong id="summary-active-sessions">0</strong>
+              </div>
+            </div>
+
+            <div class="admin-grid">
+              <section class="card">
+                <div class="card-title">CREATE USER</div>
+                <form class="user-form" id="create-user-form">
+                  <label class="field-label compact" for="create-username">USERNAME / MAC</label>
+                  <input id="create-username" class="field-input compact" type="text" />
+
+                  <label class="field-label compact" for="create-password">PASSWORD</label>
+                  <input id="create-password" class="field-input compact" type="text" />
+
+                  <label class="field-label compact" for="create-group">GROUP</label>
+                  <select id="create-group" class="field-select">
+                    <option value="admin">admin</option>
+                    <option value="employee" selected>employee</option>
+                    <option value="guest">guest</option>
+                  </select>
+
+                  <label class="field-label compact" for="create-auth-type">AUTH TYPE</label>
+                  <select id="create-auth-type" class="field-select">
+                    <option value="pap" selected>PAP</option>
+                    <option value="mab">MAB</option>
+                  </select>
+
+                  <button class="auth-btn small" id="create-user-button" type="submit">
+                    CREATE IDENTITY
+                  </button>
+                </form>
+              </section>
+
+              <section class="card">
+                <div class="card-title">GROUP POLICIES</div>
+                <div class="policy-feed" id="group-policy-feed"></div>
+              </section>
+            </div>
+
+            <div class="admin-grid tall">
+              <section class="card">
+                <div class="card-title">NETWORK USERS</div>
+                <div class="table-shell">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>User</th>
+                        <th>Group</th>
+                        <th>Status</th>
+                        <th>Sessions</th>
+                        <th>Block TTL</th>
+                      </tr>
+                    </thead>
+                    <tbody id="users-table"></tbody>
+                  </table>
+                </div>
+              </section>
+
+              <section class="card">
+                <div class="card-title">LIVE SESSIONS</div>
+                <div class="table-shell">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Session</th>
+                        <th>User</th>
+                        <th>Source</th>
+                        <th>NAS IP</th>
+                        <th>Framed IP</th>
+                        <th>Traffic</th>
+                      </tr>
+                    </thead>
+                    <tbody id="sessions-table"></tbody>
+                  </table>
+                </div>
+              </section>
+            </div>
+
+            <section class="card">
+              <div class="card-title">RECENT ACCOUNTING</div>
+              <div class="activity-feed" id="activity-feed"></div>
+            </section>
+          </section>
+        </section>
+      </div>
+    </div>
+
+    <script src="/dashboard-assets/dashboard.js"></script>
+  </body>
+</html>

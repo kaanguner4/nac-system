@@ -36,10 +36,12 @@ async def accounting(req: AccountingRequest):
         f"user={req.username} | session={req.session_id}"
     )
 
+    effective_unique_id = req.unique_id or req.session_id
+
     # PostgreSQL'e yaz
     await insert_accounting({
         "session_id":        req.session_id,
-        "unique_id":         req.unique_id,
+        "unique_id":         effective_unique_id,
         "username":          req.username,
         "nas_ip":            req.nas_ip,
         "status_type":       req.status_type,
@@ -58,7 +60,7 @@ async def accounting(req: AccountingRequest):
             "framed_ip":   req.framed_ip,
             "status":      "active",
             "session_id":  req.session_id,
-            "unique_id":   req.unique_id,
+            "unique_id":   effective_unique_id,
             "session_time": str(req.session_time),
             "input_octets": str(req.input_octets),
             "output_octets": str(req.output_octets),
@@ -72,7 +74,7 @@ async def accounting(req: AccountingRequest):
             "framed_ip":      req.framed_ip,
             "status":         "active",
             "session_id":     req.session_id,
-            "unique_id":      req.unique_id,
+            "unique_id":      effective_unique_id,
             "session_time":   str(req.session_time),
             "input_octets":   str(req.input_octets),
             "output_octets":  str(req.output_octets),

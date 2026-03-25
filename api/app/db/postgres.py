@@ -92,6 +92,24 @@ async def get_group_vlan(groupname: str):
         return {row["attribute"]: row["value"] for row in rows}
 
 
+async def get_group_policies():
+    """Tüm grup bazlı policy attribute'larını getir."""
+    pool = await get_db()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT groupname, attribute, value
+            FROM radgroupreply
+            ORDER BY groupname, attribute
+            """
+        )
+
+    policies = {}
+    for row in rows:
+        policies.setdefault(row["groupname"], {})[row["attribute"]] = row["value"]
+    return policies
+
+
 async def get_all_users():
     """Tüm kullanıcıları listele"""
     pool = await get_db()
@@ -197,6 +215,68 @@ async def get_active_accounting_sessions():
         sessions.append(session)
 
     return sessions
+
+
+async def create_user(
+    username: str,
+    attribute: str,
+    value: str,
+    groupname: str,
+    priority: int = 1,
+):
+    """Yeni PAP veya MAB kimliği oluştur."""
+    pool = await get_db()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            existing = await conn.fetchval(
+                """
+                SELECT EXISTS(
+                    SELECT 1 FROM radcheck WHERE username = $1
+                ) OR EXISTS(
+                    SELECT 1 FROM radusergroup WHERE username = $1
+                )
+                """,
+                username,
+            )
+            if existing:
+                raise ValueError("user_exists")
+
+            group_exists = await conn.fetchval(
+                """
+                SELECT EXISTS(
+                    SELECT 1 FROM radgroupreply WHERE groupname = $1
+                )
+                """,
+                groupname,
+            )
+            if not group_exists:
+                raise ValueError("invalid_group")
+
+            await conn.execute(
+                """
+                INSERT INTO radcheck (username, attribute, op, value)
+                VALUES ($1, $2, ':=', $3)
+                """,
+                username,
+                attribute,
+                value,
+            )
+            await conn.execute(
+                """
+                INSERT INTO radusergroup (username, groupname, priority)
+                VALUES ($1, $2, $3)
+                """,
+                username,
+                groupname,
+                priority,
+            )
+
+    return {
+        "username": username,
+        "attribute": attribute,
+        "groupname": groupname,
+        "priority": priority,
+    }
 
 
 async def insert_accounting(data: dict):

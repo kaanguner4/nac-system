@@ -1,0 +1,1453 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NAC — Network Access Terminal</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+
+:root {
+  --green: #00ff41;
+  --green-dim: #00cc33;
+  --green-dark: #003311;
+  --black: #020c02;
+  --scan: rgba(0,255,65,0.03);
+
+  /* Role colors */
+  --role-c: var(--green);
+  --role-bg: var(--green-dark);
+  --role-glow: #00ff4155;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--black);
+  color: var(--green);
+  font-family: 'Share Tech Mono', monospace;
+  min-height: 100vh;
+  overflow-x: hidden;
+  cursor: default;
+}
+
+/* ── CRT scanlines overlay ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.15) 2px,
+    rgba(0,0,0,0.15) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ── Phosphor flicker ── */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.5) 100%);
+  pointer-events: none;
+  z-index: 9998;
+  animation: flicker 8s infinite;
+}
+
+@keyframes flicker {
+  0%,100% { opacity: 1; }
+  92% { opacity: 1; }
+  93% { opacity: 0.85; }
+  94% { opacity: 1; }
+  96% { opacity: 0.92; }
+  97% { opacity: 1; }
+}
+
+/* ── Screens ── */
+.screen { display: none; min-height: 100vh; }
+.screen.active { display: flex; flex-direction: column; }
+
+/* ═══════════════════════════════════
+   BOOT SCREEN
+═══════════════════════════════════ */
+#bootScreen {
+  padding: 40px;
+  justify-content: flex-start;
+}
+
+.bios-header {
+  border-bottom: 1px solid var(--green-dim);
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+}
+
+.bios-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  color: var(--green);
+  opacity: 0.7;
+}
+
+#bootLog {
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--green-dim);
+}
+
+#bootLog .ok    { color: #00ff41; }
+#bootLog .warn  { color: #ffcc00; }
+#bootLog .err   { color: #ff4444; }
+#bootLog .dim   { color: #005522; }
+#bootLog .hi    { color: #00ffff; }
+
+/* ═══════════════════════════════════
+   LOGIN SCREEN
+═══════════════════════════════════ */
+#loginScreen {
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+.net-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,255,65,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,65,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  animation: gridScroll 20s linear infinite;
+}
+@keyframes gridScroll {
+  0% { background-position: 0 0; }
+  100% { background-position: 40px 40px; }
+}
+
+.login-box {
+  position: relative;
+  z-index: 10;
+  width: 520px;
+  border: 1px solid var(--green-dim);
+  background: rgba(2,12,2,0.95);
+  padding: 0;
+  box-shadow:
+    0 0 60px rgba(0,255,65,0.12),
+    inset 0 0 60px rgba(0,255,65,0.03);
+}
+
+.login-header {
+  padding: 20px 28px;
+  border-bottom: 1px solid var(--green-dark);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.login-logo {
+  font-family: 'Orbitron', monospace;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  color: var(--green);
+  text-shadow: 0 0 20px var(--green);
+}
+
+.login-sub {
+  font-size: 10px;
+  color: var(--green-dim);
+  letter-spacing: 0.12em;
+  margin-top: 2px;
+}
+
+.corner { position: absolute; width: 12px; height: 12px; border-color: var(--green); }
+.corner.tl { top: -1px; left: -1px; border-top: 2px solid; border-left: 2px solid; }
+.corner.tr { top: -1px; right: -1px; border-top: 2px solid; border-right: 2px solid; }
+.corner.bl { bottom: -1px; left: -1px; border-bottom: 2px solid; border-left: 2px solid; }
+.corner.br { bottom: -1px; right: -1px; border-bottom: 2px solid; border-right: 2px solid; }
+
+.login-body { padding: 28px; }
+
+.field-row { margin-bottom: 20px; }
+
+.field-label {
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  color: var(--green-dim);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.field-label::before {
+  content: '▸';
+  color: var(--green);
+}
+
+.field-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--green-dark);
+  color: var(--green);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 18px;
+  padding: 8px 0;
+  outline: none;
+  caret-color: var(--green);
+  letter-spacing: 0.05em;
+  transition: border-color 0.2s;
+}
+.field-input:focus { border-bottom-color: var(--green); }
+.field-input::placeholder { color: #002211; font-size: 14px; }
+
+/* Quick login buttons */
+.quick-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.quick-btn {
+  flex: 1;
+  padding: 6px;
+  background: transparent;
+  border: 1px solid var(--green-dark);
+  color: #005522;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.quick-btn:hover {
+  border-color: var(--green-dim);
+  color: var(--green);
+  background: rgba(0,255,65,0.05);
+}
+
+.auth-btn {
+  width: 100%;
+  padding: 14px;
+  background: transparent;
+  border: 1px solid var(--green-dim);
+  color: var(--green);
+  font-family: 'Orbitron', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-shadow: 0 0 10px var(--green);
+  position: relative;
+  overflow: hidden;
+}
+.auth-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--green);
+  transform: translateX(-101%);
+  transition: transform 0.2s;
+  z-index: -1;
+}
+.auth-btn:hover { color: var(--black); background: var(--green); box-shadow: 0 0 30px var(--green); }
+.auth-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.status-bar {
+  padding: 10px 28px;
+  border-top: 1px solid var(--green-dark);
+  font-size: 10px;
+  color: #005522;
+  display: flex;
+  justify-content: space-between;
+}
+.status-bar .blink { animation: blink 1s step-end infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+.api-cfg {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  align-items: center;
+}
+.api-input {
+  flex: 1;
+  background: transparent;
+  border-bottom: 1px solid #001a00;
+  color: #005522;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  padding: 4px 0;
+  outline: none;
+}
+.api-input:focus { border-bottom-color: var(--green-dim); color: var(--green-dim); }
+.api-label { font-size: 9px; letter-spacing: 0.1em; color: #003311; white-space: nowrap; }
+
+/* ═══════════════════════════════════
+   HANDSHAKE / RADIUS ANIMATION SCREEN
+═══════════════════════════════════ */
+#handshakeScreen {
+  justify-content: center;
+  align-items: center;
+}
+
+.hs-box {
+  width: 680px;
+}
+
+.hs-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: var(--green-dim);
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.hs-diagram {
+  display: grid;
+  grid-template-columns: 1fr 120px 1fr;
+  gap: 0;
+  align-items: start;
+  margin-bottom: 24px;
+}
+
+.hs-node {
+  text-align: center;
+  padding: 16px;
+  border: 1px solid var(--green-dark);
+  background: rgba(0,255,65,0.03);
+}
+.hs-node-icon { font-size: 28px; margin-bottom: 8px; }
+.hs-node-name {
+  font-family: 'Orbitron', monospace;
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  color: var(--green-dim);
+}
+.hs-node-ip { font-size: 10px; color: #005522; margin-top: 4px; }
+
+.hs-packets {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0;
+  position: relative;
+}
+
+.hs-packet {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  white-space: nowrap;
+  justify-content: center;
+}
+.hs-packet.show { opacity: 1; }
+.hs-packet.right { flex-direction: row-reverse; }
+.pkt-label {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--green-dim);
+}
+.pkt-arrow { font-size: 16px; color: var(--green); animation: pulse 0.5s ease-out; }
+@keyframes pulse { 0% { text-shadow: 0 0 20px var(--green); } 100% { text-shadow: none; } }
+
+.hs-log {
+  font-size: 11px;
+  line-height: 1.9;
+  color: #005522;
+  min-height: 120px;
+}
+.hs-log .item { color: var(--green-dim); }
+.hs-log .item.ok { color: #00ff88; }
+.hs-log .item.info { color: #00ccff; }
+
+/* ═══════════════════════════════════
+   DASHBOARD SCREEN
+═══════════════════════════════════ */
+#dashScreen {
+  flex-direction: column;
+}
+
+.dash-topbar {
+  display: flex;
+  align-items: center;
+  padding: 12px 32px;
+  border-bottom: 1px solid;
+  border-color: var(--role-c);
+  background: rgba(0,0,0,0.6);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  gap: 20px;
+}
+
+.dash-logo {
+  font-family: 'Orbitron', monospace;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  color: var(--role-c);
+  text-shadow: 0 0 15px var(--role-c);
+}
+
+.dash-user {
+  font-size: 12px;
+  color: var(--green-dim);
+}
+.dash-user span { color: var(--role-c); }
+
+.dash-session-timer {
+  font-family: 'Orbitron', monospace;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--role-c);
+  margin-left: auto;
+  opacity: 0.8;
+}
+
+.logout-btn {
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid;
+  border-color: currentColor;
+  color: #ff4444;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.logout-btn:hover { background: #ff444420; }
+
+.dash-body {
+  flex: 1;
+  padding: 32px;
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 24px;
+}
+
+/* Cards */
+.card {
+  border: 1px solid;
+  border-color: var(--role-c);
+  background: rgba(0,0,0,0.7);
+  padding: 20px;
+  position: relative;
+  box-shadow: 0 0 20px var(--role-glow), inset 0 0 20px rgba(0,0,0,0.5);
+}
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--role-c), transparent);
+  opacity: 0.6;
+}
+
+.card-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--role-c);
+  opacity: 0.7;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--role-c);
+  opacity: 0.2;
+}
+
+/* User profile card */
+.profile-avatar {
+  width: 72px;
+  height: 72px;
+  border: 2px solid var(--role-c);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  margin: 0 auto 16px;
+  box-shadow: 0 0 20px var(--role-glow);
+  background: var(--role-bg);
+}
+
+.profile-name {
+  font-family: 'Orbitron', monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--role-c);
+  text-align: center;
+  text-shadow: 0 0 15px var(--role-c);
+  margin-bottom: 4px;
+  letter-spacing: 0.05em;
+}
+
+.profile-role-badge {
+  display: block;
+  text-align: center;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  padding: 4px 12px;
+  border: 1px solid var(--role-c);
+  color: var(--role-c);
+  margin: 0 auto 20px;
+  width: fit-content;
+  background: var(--role-bg);
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(0,255,65,0.07);
+  font-size: 11px;
+}
+.info-row:last-child { border-bottom: none; }
+.info-key { color: #005522; letter-spacing: 0.05em; }
+.info-val { color: var(--role-c); font-size: 12px; }
+
+/* VLAN card */
+.vlan-display {
+  text-align: center;
+  padding: 24px 0;
+}
+.vlan-number {
+  font-family: 'Orbitron', monospace;
+  font-size: 72px;
+  font-weight: 900;
+  color: var(--role-c);
+  line-height: 1;
+  text-shadow: 0 0 40px var(--role-c), 0 0 80px var(--role-glow);
+  animation: vlanPulse 3s ease-in-out infinite;
+}
+@keyframes vlanPulse {
+  0%,100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+.vlan-label {
+  font-size: 10px;
+  letter-spacing: 0.25em;
+  color: var(--green-dim);
+  margin-top: 8px;
+}
+
+/* Permissions */
+.perm-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.perm-item {
+  padding: 10px 12px;
+  border: 1px solid;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.perm-item.allow {
+  border-color: rgba(0,255,65,0.3);
+  color: #00ff88;
+  background: rgba(0,255,100,0.04);
+}
+.perm-item.deny {
+  border-color: rgba(255,68,68,0.2);
+  color: #ff6666;
+  background: rgba(255,0,0,0.03);
+}
+.perm-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.perm-item.allow .perm-dot { background: #00ff88; box-shadow: 0 0 6px #00ff88; }
+.perm-item.deny .perm-dot { background: #ff4444; box-shadow: 0 0 6px #ff4444; }
+
+/* RADIUS attrs */
+.attr-table { width: 100%; border-collapse: collapse; }
+.attr-table tr { border-bottom: 1px solid #001a00; }
+.attr-table td { padding: 8px 4px; font-size: 11px; vertical-align: top; }
+.attr-key { color: #00aaff; width: 45%; font-size: 10px; letter-spacing: 0.04em; }
+.attr-op { color: #005522; width: 20px; text-align: center; }
+.attr-val { color: var(--green); }
+
+/* Packet log */
+.pkt-log {
+  font-size: 10px;
+  line-height: 2;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.pkt-log::-webkit-scrollbar { width: 4px; }
+.pkt-log::-webkit-scrollbar-thumb { background: #002211; }
+.pkt-entry { color: #005522; }
+.pkt-entry .ts { color: #003322; }
+.pkt-entry .msg { color: var(--green-dim); }
+.pkt-entry.success .msg { color: #00ff88; }
+.pkt-entry.info .msg { color: #00ccff; }
+
+/* Network visualizer */
+.net-vis {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 20px 0;
+}
+.net-node {
+  text-align: center;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--green-dim);
+}
+.net-node-icon {
+  font-size: 24px;
+  margin-bottom: 6px;
+  display: block;
+}
+.net-node.active .net-node-icon { filter: drop-shadow(0 0 8px var(--role-c)); }
+.net-line {
+  flex: 1;
+  height: 2px;
+  background: linear-gradient(90deg, var(--role-c), transparent, var(--role-c));
+  position: relative;
+  overflow: hidden;
+  margin: 0 8px;
+  margin-bottom: 16px;
+}
+.net-line::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 60%;
+  height: 100%;
+  background: white;
+  opacity: 0.6;
+  animation: dataFlow 1.5s linear infinite;
+}
+@keyframes dataFlow { to { left: 200%; } }
+
+/* Right column grid */
+.right-col {
+  display: grid;
+  grid-template-rows: auto auto auto;
+  gap: 16px;
+}
+.right-top { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+/* Scrollbar for all */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #003311; }
+
+/* Error toast */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 12px 20px;
+  border: 1px solid #ff4444;
+  background: rgba(2,12,2,0.95);
+  color: #ff6666;
+  font-size: 12px;
+  z-index: 10000;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.3s;
+  max-width: 380px;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+
+/* Demo badge */
+.demo-badge {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  padding: 4px 10px;
+  border: 1px solid #ffcc00;
+  color: #ffcc00;
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  z-index: 9997;
+  background: rgba(2,12,2,0.9);
+}
+
+/* Enter animation */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.fade-in { animation: fadeIn 0.5s ease-out; }
+</style>
+</head>
+<body>
+
+<!-- ─── DEMO BADGE ──────────────────────── -->
+<div class="demo-badge" id="demoBadge" style="display:none">● DEMO MODE</div>
+
+<!-- ─── TOAST ──────────────────────────── -->
+<div class="toast" id="toast"></div>
+
+<!-- ═══════════════════════════════════════
+     SCREEN 1 — BOOT
+═══════════════════════════════════════ -->
+<div class="screen active" id="bootScreen">
+  <div class="bios-header">
+    <div class="bios-title">S3M SECURITY — NAC FIRMWARE v3.2.1 · IEEE 802.1X/MAB ENABLED</div>
+  </div>
+  <div id="bootLog"></div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     SCREEN 2 — LOGIN
+═══════════════════════════════════════ -->
+<div class="screen" id="loginScreen">
+  <div class="net-grid"></div>
+  <div class="login-box fade-in">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+
+    <div class="login-header">
+      <div>
+        <div class="login-logo">NAC//TERMINAL</div>
+        <div class="login-sub">NETWORK ACCESS CONTROL · 802.1X AUTHENTICATION</div>
+      </div>
+    </div>
+
+    <div class="login-body">
+      <!-- API config (collapsed by default) -->
+      <div style="margin-bottom:16px">
+        <div style="font-size:9px;letter-spacing:0.12em;color:#003311;margin-bottom:8px;cursor:pointer" onclick="toggleApiCfg()">
+          ▸ API ENDPOINT CONFIG
+        </div>
+        <div id="apiCfg" style="display:none">
+          <div class="api-cfg">
+            <span class="api-label">URL</span>
+            <input id="apiUrl" class="api-input" value="http://localhost:8000" />
+          </div>
+          <div class="api-cfg">
+            <span class="api-label">KEY</span>
+            <input id="apiKey" class="api-input" type="password" placeholder="API_SECRET_KEY (.env'den okunur)" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick login -->
+      <div style="font-size:9px;letter-spacing:0.12em;color:#003311;margin-bottom:8px">DEMO ACCOUNTS</div>
+      <div class="quick-row">
+        <button class="quick-btn" onclick="quickLogin('admin01','admin123')">⬡ ADMIN</button>
+        <button class="quick-btn" onclick="quickLogin('employee01','employee123')">◈ EMPLOYEE</button>
+        <button class="quick-btn" onclick="quickLogin('guest01','guest123')">◯ GUEST</button>
+        <button class="quick-btn" onclick="quickLogin('aa:bb:cc:dd:ee:ff','aa:bb:cc:dd:ee:ff','aa:bb:cc:dd:ee:ff')">◻ MAB</button>
+      </div>
+
+      <div class="field-row">
+        <div class="field-label">USERNAME / MAC</div>
+        <input id="username" class="field-input" type="text" placeholder="user@domain or AA:BB:CC:DD:EE:FF" autocomplete="off" />
+      </div>
+      <div class="field-row">
+        <div class="field-label">PASSWORD</div>
+        <input id="password" class="field-input" type="password" placeholder="••••••••" autocomplete="off" />
+      </div>
+
+      <button class="auth-btn" id="loginBtn" onclick="doLogin()">
+        AUTHENTICATE →
+      </button>
+    </div>
+
+    <div class="status-bar">
+      <span id="connStatus">● CHECKING CONNECTION...</span>
+      <span><span class="blink">_</span> READY</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     SCREEN 3 — RADIUS HANDSHAKE
+═══════════════════════════════════════ -->
+<div class="screen" id="handshakeScreen">
+  <div class="hs-box fade-in">
+    <div class="hs-title">802.1X / RADIUS AUTHENTICATION EXCHANGE</div>
+
+    <div class="hs-diagram">
+      <div class="hs-node">
+        <div class="hs-node-icon">💻</div>
+        <div class="hs-node-name">SUPPLICANT</div>
+        <div class="hs-node-ip" id="hsUser">—</div>
+      </div>
+      <div class="hs-packets" id="hsPackets">
+        <!-- packets injected by JS -->
+      </div>
+      <div class="hs-node">
+        <div class="hs-node-icon">🛡</div>
+        <div class="hs-node-name">NAC ENGINE</div>
+        <div class="hs-node-ip">:8000</div>
+      </div>
+    </div>
+
+    <div class="hs-log" id="hsLog"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     SCREEN 4 — DASHBOARD
+═══════════════════════════════════════ -->
+<div class="screen" id="dashScreen">
+  <!-- Top bar -->
+  <div class="dash-topbar">
+    <div class="dash-logo">NAC//ACCESS GRANTED</div>
+    <div class="dash-user">SESSION: <span id="dbUser">—</span></div>
+    <div class="dash-session-timer" id="sessionTimer">00:00:00</div>
+    <button class="logout-btn" onclick="doLogout()">DISCONNECT</button>
+  </div>
+
+  <!-- Network visualizer bar -->
+  <div style="padding:16px 32px;border-bottom:1px solid #001a00;background:rgba(0,0,0,0.4)">
+    <div class="net-vis">
+      <div class="net-node active">
+        <span class="net-node-icon">💻</span>
+        <div id="dbDeviceLabel">DEVICE</div>
+      </div>
+      <div class="net-line"></div>
+      <div class="net-node active">
+        <span class="net-node-icon">🔌</span>
+        <div>SWITCH PORT</div>
+      </div>
+      <div class="net-line"></div>
+      <div class="net-node active">
+        <span class="net-node-icon">🌐</span>
+        <div id="dbVlanLabel">VLAN —</div>
+      </div>
+      <div class="net-line"></div>
+      <div class="net-node active">
+        <span class="net-node-icon">🛡</span>
+        <div>NAC ENGINE</div>
+      </div>
+      <div class="net-line"></div>
+      <div class="net-node" id="dbInternetNode">
+        <span class="net-node-icon">☁</span>
+        <div>INTERNET</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dash-body">
+    <!-- Left column: profile -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="card">
+        <div class="card-title">IDENTITY</div>
+        <div class="profile-avatar" id="dbAvatar">?</div>
+        <div class="profile-name" id="dbUsername">—</div>
+        <div class="profile-role-badge" id="dbRoleBadge">UNKNOWN</div>
+        <div id="dbInfoRows"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">PACKET LOG</div>
+        <div class="pkt-log" id="dbPktLog"></div>
+      </div>
+    </div>
+
+    <!-- Right column -->
+    <div class="right-col">
+      <div class="right-top">
+        <!-- VLAN card -->
+        <div class="card">
+          <div class="card-title">ASSIGNED VLAN</div>
+          <div class="vlan-display">
+            <div class="vlan-number" id="dbVlan">—</div>
+            <div class="vlan-label">TUNNEL-PRIVATE-GROUP-ID</div>
+          </div>
+        </div>
+
+        <!-- RADIUS attributes -->
+        <div class="card">
+          <div class="card-title">RADIUS REPLY ATTRIBUTES</div>
+          <table class="attr-table" id="dbAttrTable"></table>
+        </div>
+      </div>
+
+      <!-- Permissions -->
+      <div class="card">
+        <div class="card-title">ACCESS POLICY</div>
+        <div class="perm-grid" id="dbPermGrid"></div>
+      </div>
+
+      <!-- Session info -->
+      <div class="card">
+        <div class="card-title">SESSION DETAILS</div>
+        <div id="dbSessionInfo"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ──────────────────────────────────────────
+// CONFIG & STATE
+// ──────────────────────────────────────────
+const API = {
+  url: () => document.getElementById('apiUrl')?.value.trim() || 'http://localhost:8000',
+  key: () => document.getElementById('apiKey')?.value.trim() || '',
+};
+
+let demoMode = false;
+let sessionStart = null;
+let timerInterval = null;
+let currentUser = null;
+
+const ROLE_THEMES = {
+  admin: {
+    color:  '#ff4444',
+    glow:   '#ff444433',
+    bg:     '#1a0000',
+    icon:   '⬡',
+    label:  'ADMINISTRATOR',
+    perms: [
+      { text: 'Full Network Access',     allow: true  },
+      { text: 'Management VLAN',         allow: true  },
+      { text: 'Internet Unrestricted',   allow: true  },
+      { text: 'SSH / Telnet Access',     allow: true  },
+      { text: 'Device Management',       allow: true  },
+      { text: 'Guest Network Isolated',  allow: false },
+    ],
+    nasIp: '10.0.0.1',
+    framedIp: '10.10.0.' + rand(10,254),
+  },
+  employee: {
+    color:  '#00ccff',
+    glow:   '#00ccff33',
+    bg:     '#001a2a',
+    icon:   '◈',
+    label:  'EMPLOYEE',
+    perms: [
+      { text: 'Corporate Network',       allow: true  },
+      { text: 'Internet Access',         allow: true  },
+      { text: 'Internal Resources',      allow: true  },
+      { text: 'Print / File Servers',    allow: true  },
+      { text: 'Management VLAN',         allow: false },
+      { text: 'Device Management',       allow: false },
+    ],
+    nasIp: '10.0.0.5',
+    framedIp: '192.168.' + rand(1,30) + '.' + rand(10,254),
+  },
+  guest: {
+    color:  '#ffaa00',
+    glow:   '#ffaa0033',
+    bg:     '#1a1000',
+    icon:   '◯',
+    label:  'GUEST',
+    perms: [
+      { text: 'Internet Access Only',    allow: true  },
+      { text: 'Isolated VLAN',           allow: true  },
+      { text: 'Corporate Network',       allow: false },
+      { text: 'Internal Resources',      allow: false },
+      { text: 'Management VLAN',         allow: false },
+      { text: 'Print / File Servers',    allow: false },
+    ],
+    nasIp: '10.0.0.10',
+    framedIp: '172.16.' + rand(1,10) + '.' + rand(10,254),
+  },
+  mab: {
+    color:  '#aa44ff',
+    glow:   '#aa44ff33',
+    bg:     '#0f001a',
+    icon:   '◻',
+    label:  'DEVICE (MAB)',
+    perms: [
+      { text: 'Device VLAN Access',      allow: true  },
+      { text: 'Auto-Provisioned',        allow: true  },
+      { text: 'User Authentication',     allow: false },
+      { text: 'Internet Unrestricted',   allow: false },
+      { text: 'Management VLAN',         allow: false },
+      { text: 'Interactive Login',       allow: false },
+    ],
+    nasIp: '10.0.0.5',
+    framedIp: '192.168.50.' + rand(10,254),
+  },
+};
+
+const DEMO_DATA = {
+  admin01:    { auth: { result:'accept', username:'admin01' }, vlan:'10', group:'admin',    attrs: { 'Tunnel-Type':':= 13','Tunnel-Medium-Type':':= 6','Tunnel-Private-Group-Id':':= 10','Reply-Message':':= group=admin, vlan=10' } },
+  employee01: { auth: { result:'accept', username:'employee01' }, vlan:'20', group:'employee', attrs: { 'Tunnel-Type':':= 13','Tunnel-Medium-Type':':= 6','Tunnel-Private-Group-Id':':= 20','Reply-Message':':= group=employee, vlan=20' } },
+  guest01:    { auth: { result:'accept', username:'guest01' }, vlan:'30', group:'guest',    attrs: { 'Tunnel-Type':':= 13','Tunnel-Medium-Type':':= 6','Tunnel-Private-Group-Id':':= 30','Reply-Message':':= group=guest, vlan=30' } },
+  'aa:bb:cc:dd:ee:ff': { auth: { result:'accept', username:'aa:bb:cc:dd:ee:ff' }, vlan:'20', group:'employee', attrs: { 'Tunnel-Type':':= 13','Tunnel-Medium-Type':':= 6','Tunnel-Private-Group-Id':':= 20','Reply-Message':':= mab=device, vlan=20' } },
+};
+
+function rand(a,b) { return Math.floor(Math.random()*(b-a+1))+a; }
+
+// ──────────────────────────────────────────
+// SCREEN MANAGEMENT
+// ──────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ──────────────────────────────────────────
+// BOOT SEQUENCE
+// ──────────────────────────────────────────
+const bootLines = [
+  { t:0,    cls:'dim',  text:'BIOS v2.4.1 © S3M Security Systems' },
+  { t:120,  cls:'',     text:'CPU: Intel Xeon E5-2690 @ 2.90GHz x 16' },
+  { t:180,  cls:'',     text:'RAM: 32768MB DDR4 ECC · Testing...' },
+  { t:320,  cls:'ok',   text:'RAM Test OK [32768MB]' },
+  { t:400,  cls:'',     text:'Initializing network subsystem...' },
+  { t:500,  cls:'ok',   text:'NIC eth0: 10GbE connected [UP]' },
+  { t:600,  cls:'ok',   text:'NIC eth1: 1GbE connected [UP]' },
+  { t:700,  cls:'',     text:'Loading kernel modules...' },
+  { t:820,  cls:'ok',   text:'iptables/netfilter: loaded' },
+  { t:900,  cls:'ok',   text:'802.1X supplicant: enabled' },
+  { t:980,  cls:'',     text:'' },
+  { t:1000, cls:'hi',   text:'━━━ NAC POLICY ENGINE BOOT ━━━' },
+  { t:1100, cls:'',     text:'Starting FreeRADIUS 3.2...' },
+  { t:1250, cls:'ok',   text:'FreeRADIUS: listening on 0.0.0.0:1812/udp [auth]' },
+  { t:1380, cls:'ok',   text:'FreeRADIUS: listening on 0.0.0.0:1813/udp [acct]' },
+  { t:1500, cls:'',     text:'Connecting to PostgreSQL @ postgres:5432...' },
+  { t:1700, cls:'ok',   text:'PostgreSQL: connection pool established [min=2, max=10]' },
+  { t:1820, cls:'',     text:'Connecting to Redis @ redis:6379...' },
+  { t:1950, cls:'ok',   text:'Redis: session cache ready · rate-limit active [5 req/5min]' },
+  { t:2100, cls:'',     text:'Loading user database...' },
+  { t:2250, cls:'ok',   text:'radcheck: 4 records loaded' },
+  { t:2320, cls:'ok',   text:'radusergroup: 4 records loaded' },
+  { t:2400, cls:'ok',   text:'radgroupreply: 9 VLAN attribute records loaded' },
+  { t:2500, cls:'',     text:'' },
+  { t:2520, cls:'hi',   text:'━━━ VLAN POLICY TABLE ━━━' },
+  { t:2620, cls:'',     text:'  group=admin    → VLAN 10 [Tunnel-Private-Group-Id=10]' },
+  { t:2720, cls:'',     text:'  group=employee → VLAN 20 [Tunnel-Private-Group-Id=20]' },
+  { t:2820, cls:'',     text:'  group=guest    → VLAN 30 [Tunnel-Private-Group-Id=30]' },
+  { t:2950, cls:'',     text:'' },
+  { t:2970, cls:'ok',   text:'All services healthy. NAC ready.' },
+  { t:3100, cls:'hi',   text:'Launching authentication terminal...' },
+];
+
+async function runBoot() {
+  const log = document.getElementById('bootLog');
+  for (const line of bootLines) {
+    await delay(line.t === 0 ? 0 : line.t - (bootLines[bootLines.indexOf(line)-1]?.t || 0));
+    const d = document.createElement('div');
+    if (line.cls) d.className = line.cls;
+    d.textContent = line.text || '\u00A0';
+    log.appendChild(d);
+    log.scrollTop = log.scrollHeight;
+  }
+  await delay(400);
+  showScreen('loginScreen');
+  checkConn();
+}
+
+// ──────────────────────────────────────────
+// LOGIN
+// ──────────────────────────────────────────
+function toggleApiCfg() {
+  const el = document.getElementById('apiCfg');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function quickLogin(user, pass, mac='') {
+  document.getElementById('username').value = user;
+  document.getElementById('password').value = pass;
+  document.getElementById('username').focus();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const active = document.querySelector('.screen.active');
+    if (active?.id === 'loginScreen') doLogin();
+  }
+});
+
+async function doLogin() {
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value.trim();
+  if (!username || !password) { showToast('Username ve password giriniz.'); return; }
+
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true;
+  btn.textContent = 'AUTHENTICATING...';
+
+  showScreen('handshakeScreen');
+  document.getElementById('hsUser').textContent = username;
+  await runHandshake(username, password);
+}
+
+// ──────────────────────────────────────────
+// RADIUS HANDSHAKE ANIMATION + API CALL
+// ──────────────────────────────────────────
+const PACKETS = [
+  { dir:'right', label:'EAP-Request / Identity' },
+  { dir:'left',  label:'EAP-Response / Identity' },
+  { dir:'right', label:'Access-Request (PAP)' },
+  { dir:'left',  label:'RADIUS → /auth' },
+  { dir:'right', label:'bcrypt verify' },
+  { dir:'left',  label:'Access-Accept / Reject' },
+  { dir:'right', label:'RADIUS → /authorize' },
+  { dir:'left',  label:'VLAN Reply Attributes' },
+];
+
+async function runHandshake(username, password) {
+  const pktsEl = document.getElementById('hsPackets');
+  const logEl  = document.getElementById('hsLog');
+  pktsEl.innerHTML = '';
+  logEl.innerHTML  = '';
+
+  const isMab = password === username && username.includes(':');
+  const callingStation = isMab ? username : '';
+
+  // Show packets one by one
+  for (let i = 0; i < PACKETS.length; i++) {
+    const p = PACKETS[i];
+    const el = document.createElement('div');
+    el.className = `hs-packet ${p.dir}`;
+    el.innerHTML = `<span class="pkt-label">${p.label}</span><span class="pkt-arrow">${p.dir === 'right' ? '→' : '←'}</span>`;
+    pktsEl.appendChild(el);
+    await delay(180);
+    el.classList.add('show');
+    addHsLog(logEl, `[${ts()}] ${p.label}`, 'item');
+    // At packet 4, make the actual API call
+    if (i === 3) {
+      await delay(300);
+      try {
+        const result = await callAuth(username, password, callingStation);
+        currentUser = result;
+        addHsLog(logEl, `[${ts()}] POST /auth → ${result.authStatus}`, result.authStatus === 200 ? 'item ok' : 'item');
+        addHsLog(logEl, `[${ts()}] POST /authorize → VLAN ${result.vlan}`, 'item ok');
+        addHsLog(logEl, `[${ts()}] Accounting-Start → session ${result.sessionId}`, 'item info');
+      } catch(e) {
+        addHsLog(logEl, `[${ts()}] API Error: ${e.message}`, 'item');
+      }
+    }
+  }
+
+  await delay(400);
+
+  if (!currentUser || currentUser.result !== 'accept') {
+    addHsLog(logEl, `[${ts()}] ✗ ACCESS DENIED — ${currentUser?.reason || 'auth failed'}`, 'item');
+    await delay(1200);
+    showScreen('loginScreen');
+    const btn = document.getElementById('loginBtn');
+    btn.disabled = false;
+    btn.textContent = 'AUTHENTICATE →';
+    showToast(`ACCESS DENIED: ${currentUser?.reason || 'authentication failed'}`);
+    return;
+  }
+
+  addHsLog(logEl, `[${ts()}] ✓ ACCESS GRANTED — session open`, 'item ok');
+  await delay(700);
+  buildDashboard(currentUser);
+  showScreen('dashScreen');
+}
+
+async function callAuth(username, password, callingStation) {
+  const body = { username, password, nas_ip: '10.0.0.1', calling_station_id: callingStation };
+  const h = { 'Content-Type':'application/json', 'X-API-Key': API.key() };
+
+  let authData, authOk, authStatus;
+  try {
+    const r = await fetch(`${API.url()}/auth`, { method:'POST', headers:h, body:JSON.stringify(body) });
+    authData   = await r.json();
+    authOk     = r.ok;
+    authStatus = r.status;
+  } catch(e) {
+    // API unreachable → demo mode
+    const demo = DEMO_DATA[username];
+    if (!demo) return { result:'reject', reason:'user_not_found (demo mode)', username };
+    if (password !== document.getElementById('password').value.trim() && !callingStation) {
+      return { result:'reject', reason:'wrong_password (demo mode)', username };
+    }
+    demoMode = true;
+    document.getElementById('demoBadge').style.display = 'block';
+    authData   = demo.auth;
+    authOk     = true;
+    authStatus = 200;
+  }
+
+  if (!authOk || authData.result !== 'accept') {
+    return { ...authData, authStatus };
+  }
+
+  // Authorize
+  let vlan = '—', attrs = {}, replyMsg = '';
+  try {
+    if (demoMode) {
+      const d = DEMO_DATA[username] || DEMO_DATA['guest01'];
+      vlan    = d.vlan;
+      attrs   = d.attrs;
+    } else {
+      const r2 = await fetch(`${API.url()}/authorize`, { method:'POST', headers:h, body:JSON.stringify({username}) });
+      const d2 = await r2.json();
+      vlan = d2['reply:Tunnel-Private-Group-Id']?.value?.[0] || '—';
+      Object.entries(d2).forEach(([k,v]) => {
+        if (k.startsWith('reply:')) {
+          attrs[k.replace('reply:','')] = `${v.op} ${Array.isArray(v.value) ? v.value[0] : v.value}`;
+        }
+      });
+    }
+  } catch(_) {}
+
+  const isMab = callingStation !== '';
+  const group = attrs['Reply-Message']?.match(/group=(\w+)/)?.[1] || detectGroup(username, vlan);
+
+  const sessionId = `sess-${Date.now().toString(36).toUpperCase()}`;
+  // Send Accounting-Start (best effort)
+  try {
+    if (!demoMode) {
+      fetch(`${API.url()}/accounting`, { method:'POST', headers:h, body: JSON.stringify({
+        status_type:'Start', session_id:sessionId, unique_id:`uniq-${Date.now()}`,
+        username, nas_ip:'10.0.0.1', calling_station_id: callingStation || '00:11:22:33:44:55',
+        framed_ip: ROLE_THEMES[group]?.framedIp || '192.168.1.100',
+        session_time:0, input_octets:0, output_octets:0
+      })});
+    }
+  } catch(_) {}
+
+  return {
+    result: 'accept',
+    username,
+    group: isMab ? 'mab' : group,
+    vlan,
+    attrs,
+    sessionId,
+    authStatus,
+    isMab,
+    callingStation,
+  };
+}
+
+function detectGroup(username, vlan) {
+  if (vlan === '10') return 'admin';
+  if (vlan === '20') return 'employee';
+  if (vlan === '30') return 'guest';
+  if (username.includes(':')) return 'mab';
+  return 'guest';
+}
+
+function addHsLog(el, text, cls) {
+  const d = document.createElement('div');
+  d.className = `item ${cls}`;
+  d.textContent = text;
+  el.appendChild(d);
+}
+
+// ──────────────────────────────────────────
+// DASHBOARD
+// ──────────────────────────────────────────
+function buildDashboard(u) {
+  const group = u.group || 'guest';
+  const theme = ROLE_THEMES[group] || ROLE_THEMES.guest;
+
+  // Apply theme
+  document.documentElement.style.setProperty('--role-c',   theme.color);
+  document.documentElement.style.setProperty('--role-glow', theme.glow);
+  document.documentElement.style.setProperty('--role-bg',   theme.bg);
+
+  // Top bar
+  document.getElementById('dbUser').textContent = u.username;
+  document.getElementById('dbDeviceLabel').textContent = u.isMab ? 'MAC DEVICE' : 'WORKSTATION';
+  document.getElementById('dbVlanLabel').textContent   = `VLAN ${u.vlan}`;
+
+  // Internet node — guest gets dim
+  const inetNode = document.getElementById('dbInternetNode');
+  if (group === 'guest') {
+    inetNode.style.opacity = '0.3';
+    inetNode.querySelector('.net-node-icon').textContent = '⊘';
+  } else {
+    inetNode.classList.add('active');
+  }
+
+  // Avatar & profile
+  document.getElementById('dbAvatar').textContent   = theme.icon;
+  document.getElementById('dbUsername').textContent = u.username.toUpperCase();
+  document.getElementById('dbRoleBadge').textContent = `● ${theme.label}`;
+
+  // Info rows
+  const nasIp = theme.nasIp;
+  const framedIp = theme.framedIp;
+  const infoRows = [
+    { k:'GROUP',      v: group.toUpperCase() },
+    { k:'NAS IP',     v: nasIp },
+    { k:'FRAMED IP',  v: framedIp },
+    { k:'SESSION ID', v: u.sessionId },
+    { k:'AUTH TYPE',  v: u.isMab ? 'MAB (802.1X bypass)' : 'PAP/bcrypt' },
+    { k:'NAS TYPE',   v: 'Cisco Catalyst 9300' },
+  ];
+  document.getElementById('dbInfoRows').innerHTML = infoRows.map(r =>
+    `<div class="info-row"><span class="info-key">${r.k}</span><span class="info-val">${r.v}</span></div>`
+  ).join('');
+
+  // VLAN
+  document.getElementById('dbVlan').textContent = u.vlan;
+
+  // RADIUS attributes table
+  const attrRows = Object.entries(u.attrs).map(([k,v]) => {
+    const parts = v.match(/^(:=|=|\+=)\s*(.+)$/);
+    const op  = parts?.[1] || ':=';
+    const val = parts?.[2] || v;
+    return `<tr>
+      <td class="attr-key">${k}</td>
+      <td class="attr-op">${op}</td>
+      <td class="attr-val">${val}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('dbAttrTable').innerHTML = attrRows || '<tr><td colspan="3" style="color:#003311;font-size:11px">No attributes</td></tr>';
+
+  // Permissions
+  document.getElementById('dbPermGrid').innerHTML = theme.perms.map(p =>
+    `<div class="perm-item ${p.allow?'allow':'deny'}">
+      <div class="perm-dot"></div>${p.text}
+    </div>`
+  ).join('');
+
+  // Session details
+  const now = new Date();
+  document.getElementById('dbSessionInfo').innerHTML = `
+    <div class="info-row"><span class="info-key">CONNECTED AT</span><span class="info-val">${now.toLocaleTimeString('tr-TR')}</span></div>
+    <div class="info-row"><span class="info-key">SESSION ID</span><span class="info-val">${u.sessionId}</span></div>
+    <div class="info-row"><span class="info-key">ACCT STATUS</span><span class="info-val" style="color:#00ff88">● Start</span></div>
+    <div class="info-row"><span class="info-key">TX / RX</span><span class="info-val">0 B / 0 B</span></div>
+    <div class="info-row"><span class="info-key">TUNNEL TYPE</span><span class="info-val">13 (VLAN)</span></div>
+    <div class="info-row"><span class="info-key">TUNNEL MEDIUM</span><span class="info-val">6 (IEEE 802)</span></div>
+  `;
+
+  // Packet log
+  const logEntries = [
+    { cls:'info',    msg:`Access-Request → NAS ${nasIp}` },
+    { cls:'success', msg:`Access-Accept  ← group=${group}, vlan=${u.vlan}` },
+    { cls:'success', msg:`Accounting-Start → session opened` },
+    { cls:'',        msg:`VLAN ${u.vlan} assigned via Tunnel-Private-Group-Id` },
+    { cls:'',        msg:`Framed-IP: ${framedIp}` },
+  ];
+  document.getElementById('dbPktLog').innerHTML = logEntries.map(e =>
+    `<div class="pkt-entry ${e.cls}"><span class="ts">[${ts()}]</span> <span class="msg">${e.msg}</span></div>`
+  ).join('');
+
+  // Start session timer
+  sessionStart = Date.now();
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(updateTimer, 1000);
+  updateTimer();
+
+  // Animate TX/RX counters
+  simulateTraffic(group);
+}
+
+function updateTimer() {
+  if (!sessionStart) return;
+  const s = Math.floor((Date.now()-sessionStart)/1000);
+  const h = String(Math.floor(s/3600)).padStart(2,'0');
+  const m = String(Math.floor((s%3600)/60)).padStart(2,'0');
+  const sec = String(s%60).padStart(2,'0');
+  document.getElementById('sessionTimer').textContent = `${h}:${m}:${sec}`;
+}
+
+let txBytes = 0, rxBytes = 0;
+function simulateTraffic(group) {
+  const rates = { admin:12000, employee:4000, guest:800, mab:200 };
+  const rate = rates[group] || 1000;
+  setInterval(() => {
+    txBytes += rand(100, rate);
+    rxBytes += rand(500, rate * 3);
+    const el = document.querySelector('.info-row .info-val:last-child');
+    const txrxEl = document.getElementById('dbSessionInfo');
+    if (txrxEl) {
+      const rows = txrxEl.querySelectorAll('.info-row');
+      if (rows[3]) rows[3].querySelector('.info-val').textContent = `${fmtBytes(txBytes)} / ${fmtBytes(rxBytes)}`;
+    }
+  }, 2000);
+}
+
+function fmtBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(2) + ' MB';
+}
+
+// ──────────────────────────────────────────
+// LOGOUT
+// ──────────────────────────────────────────
+async function doLogout() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+
+  // Send Accounting-Stop
+  if (currentUser && !demoMode) {
+    const elapsed = Math.floor((Date.now()-sessionStart)/1000);
+    try {
+      const h = { 'Content-Type':'application/json', 'X-API-Key': API.key() };
+      await fetch(`${API.url()}/accounting`, { method:'POST', headers:h, body: JSON.stringify({
+        status_type:'Stop', session_id:currentUser.sessionId, unique_id:`uniq-${Date.now()}`,
+        username:currentUser.username, nas_ip:'10.0.0.1',
+        session_time:elapsed, input_octets:rxBytes, output_octets:txBytes,
+      })});
+    } catch(_) {}
+  }
+
+  txBytes = 0; rxBytes = 0; sessionStart = null; currentUser = null; demoMode = false;
+  document.getElementById('demoBadge').style.display = 'none';
+
+  // Reset theme
+  document.documentElement.style.setProperty('--role-c',   '#00ff41');
+  document.documentElement.style.setProperty('--role-glow', '#00ff4155');
+  document.documentElement.style.setProperty('--role-bg',   '#003311');
+
+  document.getElementById('username').value = '';
+  document.getElementById('password').value = '';
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = false;
+  btn.textContent = 'AUTHENTICATE →';
+
+  showScreen('loginScreen');
+}
+
+// ──────────────────────────────────────────
+// HELPERS
+// ──────────────────────────────────────────
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+function ts() {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}.${String(d.getMilliseconds()).padStart(3,'0')}`;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+async function checkConn() {
+  const el = document.getElementById('connStatus');
+  el.textContent = '● CHECKING CONNECTION...';
+  try {
+    const r = await fetch(`${API.url()}/health`, { signal: AbortSignal.timeout(3000) });
+    if (r.ok) {
+      el.textContent = '● API ONLINE — LIVE MODE';
+      el.style.color = '#00ff88';
+    } else {
+      el.textContent = `● API ERROR ${r.status}`;
+      el.style.color = '#ffcc00';
+    }
+  } catch {
+    el.textContent = '● API OFFLINE — DEMO MODE ACTIVE';
+    el.style.color = '#ffaa00';
+  }
+}
+
+// ──────────────────────────────────────────
+// INIT
+// ──────────────────────────────────────────
+runBoot();
+</script>
+</body>
+</html>
