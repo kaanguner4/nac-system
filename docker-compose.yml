@@ -83,6 +83,7 @@ services:
       - "1813:1813/udp"
     environment:
       RADIUS_SHARED_SECRET: ${RADIUS_SHARED_SECRET}
+      API_SECRET_KEY: ${API_SECRET_KEY}
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -102,7 +103,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "printf 'Message-Authenticator = 0x00\\n' | radclient -x 127.0.0.1 status ${RADIUS_SHARED_SECRET}",
+          "printf 'Message-Authenticator = 0x00\\n' | radclient -x 127.0.0.1 status $$RADIUS_SHARED_SECRET",
         ]
       interval: 30s
       timeout: 10s

@@ -1,6 +1,6 @@
 import logging
 import bcrypt as _bcrypt
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from starlette.responses import JSONResponse, Response
 
@@ -10,9 +10,10 @@ from app.db.redis import (
     increment_failed_attempts,
     reset_failed_attempts,
 )
+from app.security import require_api_key
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_api_key)])
 
 
 # ─────────────────────────────────────────

@@ -1,12 +1,13 @@
 import logging
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from app.db.postgres import insert_accounting
 from app.db.redis import set_session, delete_session
+from app.security import require_api_key
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_api_key)])
 
 
 

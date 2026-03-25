@@ -19,6 +19,10 @@ server default {
         filter_username
         preprocess
 
+        update control {
+            &REST-HTTP-Header := "x-api-key: $ENV{API_SECRET_KEY}"
+        }
+
         # FastAPI policy engine'den VLAN/policy attribute'larını al
         rest
 
@@ -42,6 +46,9 @@ server default {
 
         # PAP ve MAB doğrulamasının tek karar merkezi FastAPI /auth olsun
         Auth-Type PAP {
+            update control {
+                &REST-HTTP-Header := "x-api-key: $ENV{API_SECRET_KEY}"
+            }
             rest
         }
     }
@@ -50,6 +57,9 @@ server default {
     # ACCOUNTING — oturum verisi kaydet
     # ─────────────────────────────────────────
     accounting {
+        update control {
+            &REST-HTTP-Header := "x-api-key: $ENV{API_SECRET_KEY}"
+        }
         rest
     }
 

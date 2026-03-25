@@ -1,12 +1,13 @@
 import asyncio
 import logging
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.db.postgres import get_all_users, get_latest_accounting_by_user
 from app.db.redis import get_all_active_sessions, get_all_blocked_users
+from app.security import require_api_key
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_api_key)])
 
 
 
