@@ -1,7 +1,7 @@
 import logging
-from fastapi import APIRouter, HTTPException
+import bcrypt as _bcrypt
+from fastapi import APIRouter
 from pydantic import BaseModel
-from passlib.context import CryptContext
 
 from app.db.postgres import get_user, get_user_group, get_group_vlan
 from app.db.redis import (
@@ -13,22 +13,20 @@ from app.db.redis import (
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# bcrypt context - şifre doğrulama için
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-
-
+# ─────────────────────────────────────────
 # Request / Response şemaları
+# ─────────────────────────────────────────
 
 class AuthRequest(BaseModel):
     username: str
     password: str
-    nas_ip: str = "127.0.0.1" # Opsiyonel, NAS IP'si
-    calling_station_id: str = "" # Opsiyonel, MAB cihaz için MAC adresi
+    nas_ip: str = "127.0.0.1"
+    calling_station_id: str = ""
 
 
 class AuthResponse(BaseModel):
-    result: str           # "accept" veya "reject"
+    result: str
     username: str
     reason: str = ""
 
@@ -44,28 +42,32 @@ class AuthorizeResponse(BaseModel):
     attributes: dict = {}
 
 
+# ─────────────────────────────────────────
+# Yardımcı fonksiyonlar
+# ─────────────────────────────────────────
 
-# Yardımcı fonksiyon - şifre doğrulama
 def verify_password(plain: str, hashed: str) -> bool:
-    """
-    bcrypt hash ile düz metin şifreyi karşılaştır.
-    Geliştirme aşamasında plaintext de desteklenir.
-    """
-    # Cleartext-Password ise doğrudan karşılaştır (geliştirme / test için)
-    if not hashed.startswith("$2b$"):
-        return plain == hashed
-    # bcrypt hash ise pwd_context kullanarak doğrula (production için)
-    return pwd_context.verify(plain, hashed)
+    """bcrypt hash ile düz metin şifreyi karşılaştır."""
+    try:
+        return _bcrypt.checkpw(
+            plain.encode("utf-8"),
+            hashed.encode("utf-8")
+        )
+    except Exception:
+        return False
 
 
 def hash_password(plain: str) -> str:
-    """ Şifreyi bcrypt ile hash'le (production için) """
-    return pwd_context.hash(plain)
+    """Şifreyi bcrypt ile hashle."""
+    return _bcrypt.hashpw(
+        plain.encode("utf-8"),
+        _bcrypt.gensalt()
+    ).decode("utf-8")
 
 
-
+# ─────────────────────────────────────────
 # POST /auth — kimlik doğrulama
-# FreeRADIUS rlm_rest bu endpoint'i çağırır
+# ─────────────────────────────────────────
 
 @router.post("/auth", response_model=AuthResponse)
 async def authenticate(req: AuthRequest):
@@ -81,7 +83,7 @@ async def authenticate(req: AuthRequest):
             reason="too_many_attempts",
         )
 
-    # 2. MAB kontrolü — şifre MAC adresine eşitse MAB isteği
+    # 2. MAB kontrolü
     is_mab = (req.password == req.calling_station_id and
               req.calling_station_id != "")
 
@@ -98,7 +100,6 @@ async def authenticate(req: AuthRequest):
 
     # 4. Şifre doğrulama
     if is_mab:
-        # MAB: MAC adresi hem username hem password olarak gelir
         password_ok = (req.username == req.calling_station_id)
     else:
         password_ok = verify_password(req.password, user["value"])
@@ -112,7 +113,7 @@ async def authenticate(req: AuthRequest):
             reason="wrong_password",
         )
 
-    # 5. Başarılı giriş — sayacı sıfırla
+    # 5. Başarılı giriş
     await reset_failed_attempts(req.username)
     logger.info(f"Auth başarılı: {req.username} (MAB: {is_mab})")
 
@@ -122,9 +123,9 @@ async def authenticate(req: AuthRequest):
     )
 
 
-
+# ─────────────────────────────────────────
 # POST /authorize — VLAN atama
-# FreeRADIUS rlm_rest bu endpoint'i çağırır
+# ─────────────────────────────────────────
 
 @router.post("/authorize", response_model=AuthorizeResponse)
 async def authorize(req: AuthorizeRequest):
@@ -151,8 +152,10 @@ async def authorize(req: AuthorizeRequest):
         )
 
     vlan_id = vlan_attrs.get("Tunnel-Private-Group-Id", "")
-    logger.info(f"Authorize başarılı: {req.username} → "
-                f"grup={groupname} vlan={vlan_id}")
+    logger.info(
+        f"Authorize başarılı: {req.username} → "
+        f"grup={groupname} vlan={vlan_id}"
+    )
 
     return AuthorizeResponse(
         result="accept",

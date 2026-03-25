@@ -4,9 +4,9 @@ sql {
 
     server      = "postgres"
     port        = 5432
-    login       = "radius"
-    password    = "radiuspassword"
-    radius_db   = "radius"
+    login       = "$ENV{POSTGRES_USER}"
+    password    = "$ENV{POSTGRES_PASSWORD}"
+    radius_db   = "$ENV{POSTGRES_DB}"
 
     acct_table1         = "radacct"
     acct_table2         = "radacct"

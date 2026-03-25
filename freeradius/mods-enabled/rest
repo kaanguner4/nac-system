@@ -5,18 +5,21 @@ rest {
         uri    = "${..connect_uri}/auth"
         method = "post"
         body   = "json"
+        data   = '{"username": "%{User-Name}", "password": "%{User-Password}", "nas_ip": "%{NAS-IP-Address}", "calling_station_id": "%{Calling-Station-Id}"}'
     }
 
     authorize {
         uri    = "${..connect_uri}/authorize"
         method = "post"
         body   = "json"
+        data   = '{"username": "%{User-Name}"}'
     }
 
     accounting {
         uri    = "${..connect_uri}/accounting"
         method = "post"
         body   = "json"
+        data   = '{"status_type": "%{Acct-Status-Type}", "session_id": "%{Acct-Session-Id}", "unique_id": "%{Acct-Unique-Session-Id}", "username": "%{User-Name}", "nas_ip": "%{NAS-IP-Address}", "calling_station_id": "%{Calling-Station-Id}", "framed_ip": "%{Framed-IP-Address}", "session_time": "%{Acct-Session-Time}", "input_octets": "%{Acct-Input-Octets}", "output_octets": "%{Acct-Output-Octets}"}'
     }
 
     pool {
