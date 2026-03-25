@@ -74,7 +74,7 @@ services:
 
   # 4. FreeRADIUS — RADIUS sunucusu
   freeradius:
-    platform: inux/amd64
+    platform: linux/amd64
     image: freeradius/freeradius-server:latest-3.2
     container_name: nac_freeradius
     restart: unless-stopped
@@ -83,13 +83,14 @@ services:
       - "1813:1813/udp"
     environment:
       RADIUS_SHARED_SECRET: ${RADIUS_SHARED_SECRET}
+      POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - ./freeradius/clients.conf:/etc/freeradius/3.0/clients.conf
-      - ./freeradius/mods-enabled/sql:/etc/freeradius/3.0/mods-enabled/sql
-      - ./freeradius/mods-enabled/rest:/etc/freeradius/3.0/mods-enabled/rest
-      - ./freeradius/sites-enabled/default:/etc/freeradius/3.0/sites-enabled/default
+      - ./freeradius/clients.conf:/etc/freeradius/clients.conf
+      - ./freeradius/mods-enabled/sql:/etc/freeradius/mods-enabled/sql
+      - ./freeradius/mods-enabled/rest:/etc/freeradius/mods-enabled/rest
+      - ./freeradius/sites-enabled/default:/etc/freeradius/sites-enabled/default
     networks:
       - nac_network
     depends_on:
@@ -98,7 +99,11 @@ services:
       api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "radtest", "healthcheck", "healthcheck", "localhost", "0", "testing123"]
+      test:
+        [
+          "CMD-SHELL",
+          "printf 'Message-Authenticator = 0x00\\n' | radclient -x 127.0.0.1 status ${RADIUS_SHARED_SECRET}",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -21,20 +21,20 @@ server default {
 
         # MAB tespiti — username MAC adresi formatındaysa
         if ("%{User-Name}" =~ /^([0-9a-f]{2}[:-]){5}[0-9a-f]{2}$/i) {
-            update request {
+            update control {
                 Auth-Type := Accept
             }
         }
 
-        # FastAPI'ye sor — VLAN bilgisini al
-        rest
-
-        # PostgreSQL'den kullanıcı/grup bilgisini al
+        # PostgreSQL'den kullanıcı ve grup/VLAN bilgisini al
         sql
 
-        if (!ok) {
+        if (notfound) {
             reject
         }
+
+        # PAP isteklerinde Auth-Type PAP olarak işaretle
+        pap
     }
 
     # ─────────────────────────────────────────
@@ -58,17 +58,10 @@ server default {
     # ─────────────────────────────────────────
     accounting {
         rest
-        sql
     }
 
     # ─────────────────────────────────────────
     # POST-AUTH — giriş sonrası işlemler
     # ─────────────────────────────────────────
-    post-auth {
-        sql
-
-        Post-Auth-Type REJECT {
-            sql
-        }
-    }
+    post-auth {}
 }

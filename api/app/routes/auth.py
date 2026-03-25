@@ -2,6 +2,7 @@ import logging
 import bcrypt as _bcrypt
 from fastapi import APIRouter
 from pydantic import BaseModel
+from starlette.responses import JSONResponse
 
 from app.db.postgres import get_user, get_user_group, get_group_vlan
 from app.db.redis import (
@@ -77,10 +78,13 @@ async def authenticate(req: AuthRequest):
     allowed = await check_rate_limit(req.username)
     if not allowed:
         logger.warning(f"Rate limit: {req.username} bloklu")
-        return AuthResponse(
-            result="reject",
-            username=req.username,
-            reason="too_many_attempts",
+        return JSONResponse(
+            status_code=429,
+            content=AuthResponse(
+                result="reject",
+                username=req.username,
+                reason="too_many_attempts",
+            ).model_dump(),
         )
 
     # 2. MAB kontrolü
@@ -92,10 +96,13 @@ async def authenticate(req: AuthRequest):
     if not user:
         await increment_failed_attempts(req.username)
         logger.warning(f"Kullanıcı bulunamadı: {req.username}")
-        return AuthResponse(
-            result="reject",
-            username=req.username,
-            reason="user_not_found",
+        return JSONResponse(
+            status_code=401,
+            content=AuthResponse(
+                result="reject",
+                username=req.username,
+                reason="user_not_found",
+            ).model_dump(),
         )
 
     # 4. Şifre doğrulama
@@ -107,10 +114,13 @@ async def authenticate(req: AuthRequest):
     if not password_ok:
         await increment_failed_attempts(req.username)
         logger.warning(f"Yanlış şifre: {req.username}")
-        return AuthResponse(
-            result="reject",
-            username=req.username,
-            reason="wrong_password",
+        return JSONResponse(
+            status_code=401,
+            content=AuthResponse(
+                result="reject",
+                username=req.username,
+                reason="wrong_password",
+            ).model_dump(),
         )
 
     # 5. Başarılı giriş
