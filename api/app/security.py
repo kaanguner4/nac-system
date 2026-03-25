@@ -89,7 +89,6 @@ def set_dashboard_session_cookie(
         httponly=True,
         max_age=DASHBOARD_SESSION_MAX_AGE,
         samesite="lax",
-        secure=True,
     )
 
 

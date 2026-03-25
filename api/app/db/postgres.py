@@ -299,7 +299,8 @@ async def insert_accounting(data: dict):
                 acctoutputoctets   = $10,
                 acctstoptime       = CASE
                     WHEN EXCLUDED.acctstatustype = 'Stop'
-                    THEN NOW() ELSE NULL END
+                    THEN NOW()
+                    ELSE radacct.acctstoptime END
             """,
             data.get("session_id"),
             data.get("unique_id"),
