@@ -41,7 +41,7 @@ async def get_db():
 
 # Veritabanı işlemleri için yardımcı fonksiyonlar
 async def get_user(username: str):
-    """radcheck tablosundan kullanıcıyı çek"""
+    """radcheck tablosundan kullanıcının auth kaydını çek."""
     pool = await get_db()
     async with pool.acquire() as conn:
         return await conn.fetchrow(
@@ -49,7 +49,13 @@ async def get_user(username: str):
             SELECT username, attribute, value
             FROM radcheck
             WHERE username = $1
-              AND attribute = 'Cleartext-Password'
+              AND attribute IN ('Password-Hash', 'Device-MAC')
+            ORDER BY CASE attribute
+                WHEN 'Password-Hash' THEN 1
+                WHEN 'Device-MAC' THEN 2
+                ELSE 99
+            END
+            LIMIT 1
             """,
             username,
         )

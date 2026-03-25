@@ -109,11 +109,11 @@ INSERT INTO radgroupreply (groupname, attribute, op, value) VALUES
 
 
 -- Test kullanıcıları
--- NOT: Şifreler ilerleyen adımda hash'lenecek, şimdilik plaintext — sadece test amaçlı
+-- Şifreler bcrypt hash olarak tutulur; doğrulama FastAPI policy engine tarafından yapılır
 INSERT INTO radcheck (username, attribute, op, value) VALUES
-    ('admin01',    'Cleartext-Password', ':=', '$2b$12$x1HaTP3nOMhMsZur.X5Vv.nCev084dXAvcNPqbnxgiDKoj9Qc0fEa'),
-    ('employee01', 'Cleartext-Password', ':=', '$2b$12$.0QK6HXf41x1O.jA8ESfjeDTtP7yrhaSKoBZimAkRT74hiiCjfUZG'),
-    ('guest01',    'Cleartext-Password', ':=', '$2b$12$WUd3tljzZGFxpH3lHEbH6u0.jQp//A0ekkdnhsMzrdtlqCSz7tFUG');
+    ('admin01',    'Password-Hash', ':=', '$2b$12$x1HaTP3nOMhMsZur.X5Vv.nCev084dXAvcNPqbnxgiDKoj9Qc0fEa'),
+    ('employee01', 'Password-Hash', ':=', '$2b$12$.0QK6HXf41x1O.jA8ESfjeDTtP7yrhaSKoBZimAkRT74hiiCjfUZG'),
+    ('guest01',    'Password-Hash', ':=', '$2b$12$WUd3tljzZGFxpH3lHEbH6u0.jQp//A0ekkdnhsMzrdtlqCSz7tFUG');
 
 
 -- Kullanıcıları gruplara bağla
@@ -123,14 +123,14 @@ INSERT INTO radusergroup (username, groupname, priority) VALUES
     ('guest01',    'guest',    1);
 
 
--- Test NAS tanımı (docker ortamı için)
+-- Demo NAS envanteri. Runtime shared secret clients.conf/.env üzerinden yönetilir.
 INSERT INTO nas (nasname, shortname, secret, description) VALUES
-    ('127.0.0.1', 'localhost', 'testing123', 'Local test NAS');
+    ('127.0.0.1', 'localhost', 'env-managed', 'Demo NAS inventory entry');
 
 
 -- MAB test cihazları (MAC adresi tabanlı)
 INSERT INTO radcheck (username, attribute, op, value) VALUES
-    ('aa:bb:cc:dd:ee:ff', 'Cleartext-Password', ':=', 'aa:bb:cc:dd:ee:ff');
+    ('aa:bb:cc:dd:ee:ff', 'Device-MAC', ':=', 'aa:bb:cc:dd:ee:ff');
 
 INSERT INTO radusergroup (username, groupname, priority) VALUES
     ('aa:bb:cc:dd:ee:ff', 'employee', 1);

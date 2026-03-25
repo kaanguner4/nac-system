@@ -112,7 +112,11 @@ async def authenticate(req: AuthRequest):
 
     # 4. Şifre doğrulama
     if is_mab:
-        password_ok = (req.username == req.calling_station_id)
+        password_ok = (
+            user["attribute"] == "Device-MAC" and
+            user["value"] == req.calling_station_id and
+            req.username == req.calling_station_id
+        )
     else:
         password_ok = verify_password(req.password, user["value"])
 
