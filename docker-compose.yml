@@ -82,8 +82,13 @@ services:
       - "1813:1813/udp"
     environment:
       RADIUS_SHARED_SECRET: ${RADIUS_SHARED_SECRET}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - ./freeradius:/etc/freeradius/3.0
+      - ./freeradius/clients.conf:/etc/freeradius/3.0/clients.conf
+      - ./freeradius/mods-enabled/sql:/etc/freeradius/3.0/mods-enabled/sql
+      - ./freeradius/mods-enabled/rest:/etc/freeradius/3.0/mods-enabled/rest
+      - ./freeradius/sites-enabled/default:/etc/freeradius/3.0/sites-enabled/default
     networks:
       - nac_network
     depends_on:
@@ -96,7 +101,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-
 
 # Network — servisler arası iletişim
 networks:
