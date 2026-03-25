@@ -112,7 +112,7 @@ INSERT INTO radgroupreply (groupname, attribute, op, value) VALUES
 -- Şifreler bcrypt hash olarak tutulur; doğrulama FastAPI policy engine tarafından yapılır
 INSERT INTO radcheck (username, attribute, op, value) VALUES
     ('admin01',    'Password-Hash', ':=', '$2b$12$x1HaTP3nOMhMsZur.X5Vv.nCev084dXAvcNPqbnxgiDKoj9Qc0fEa'),
-    ('employee01', 'Password-Hash', ':=', '$2b$12$.54wy4B2XToPwuLXv6PcLesRwjzk4UAdyraY76SX7G72LVuUcUMke'),
+    ('employee01', 'Password-Hash', ':=', '$2b$12$pyDUL8KgAUMRhdHsjy/HF.VfopzLDbgQMXE15hO7BgJDaKtRM0aNq'),
     ('guest01',    'Password-Hash', ':=', '$2b$12$WUd3tljzZGFxpH3lHEbH6u0.jQp//A0ekkdnhsMzrdtlqCSz7tFUG');
 
 
