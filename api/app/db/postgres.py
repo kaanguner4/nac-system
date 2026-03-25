@@ -97,7 +97,60 @@ async def get_all_users():
             ORDER BY r.username
             """
         )
-    
+
+
+async def get_latest_accounting_by_user():
+    """Her kullanıcı için en güncel accounting kaydını getir."""
+    pool = await get_db()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT DISTINCT ON (username)
+                username,
+                acctsessionid,
+                acctuniqueid,
+                acctstatustype,
+                nasipaddress,
+                callingstationid,
+                framedipaddress,
+                acctstarttime,
+                acctupdatetime,
+                acctstoptime,
+                acctsessiontime,
+                acctinputoctets,
+                acctoutputoctets,
+                COALESCE(
+                    acctupdatetime,
+                    acctstoptime,
+                    acctstarttime
+                ) AS last_activity
+            FROM radacct
+            ORDER BY
+                username,
+                COALESCE(acctupdatetime, acctstoptime, acctstarttime) DESC NULLS LAST,
+                radacctid DESC
+            """
+        )
+
+    return {
+        row["username"]: {
+            "session_id": row["acctsessionid"],
+            "unique_id": row["acctuniqueid"],
+            "status_type": row["acctstatustype"],
+            "nas_ip": row["nasipaddress"],
+            "calling_station_id": row["callingstationid"],
+            "framed_ip": row["framedipaddress"],
+            "start_time": row["acctstarttime"],
+            "update_time": row["acctupdatetime"],
+            "stop_time": row["acctstoptime"],
+            "last_activity": row["last_activity"],
+            "session_time": row["acctsessiontime"],
+            "input_octets": row["acctinputoctets"],
+            "output_octets": row["acctoutputoctets"],
+        }
+        for row in rows
+    }
+
 
 async def insert_accounting(data: dict):
     """Yeni accounting kaydı ekle ya da güncelle"""

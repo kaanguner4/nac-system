@@ -26,10 +26,10 @@ server default {
             }
         }
 
-        # PostgreSQL'den kullanıcı ve grup/VLAN bilgisini al
-        sql
+        # FastAPI policy engine'den VLAN/policy attribute'larını al
+        rest
 
-        if (notfound) {
+        if (notfound || reject || fail || invalid || userlock) {
             reject
         }
 

@@ -2,7 +2,7 @@ import logging
 import bcrypt as _bcrypt
 from fastapi import APIRouter
 from pydantic import BaseModel
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
 
 from app.db.postgres import get_user, get_user_group, get_group_vlan
 from app.db.redis import (
@@ -36,13 +36,6 @@ class AuthorizeRequest(BaseModel):
     username: str
 
 
-class AuthorizeResponse(BaseModel):
-    result: str
-    username: str
-    vlan: str = ""
-    attributes: dict = {}
-
-
 # ─────────────────────────────────────────
 # Yardımcı fonksiyonlar
 # ─────────────────────────────────────────
@@ -64,6 +57,17 @@ def hash_password(plain: str) -> str:
         plain.encode("utf-8"),
         _bcrypt.gensalt()
     ).decode("utf-8")
+
+
+def build_radius_reply(attributes: dict) -> dict:
+    """FreeRADIUS rlm_rest için reply attribute gövdesi oluştur."""
+    return {
+        f"reply:{attribute}": {
+            "op": ":=",
+            "value": [value],
+        }
+        for attribute, value in attributes.items()
+    }
 
 
 # ─────────────────────────────────────────
@@ -137,7 +141,7 @@ async def authenticate(req: AuthRequest):
 # POST /authorize — VLAN atama
 # ─────────────────────────────────────────
 
-@router.post("/authorize", response_model=AuthorizeResponse)
+@router.post("/authorize")
 async def authorize(req: AuthorizeRequest):
     logger.info(f"Authorize isteği: {req.username}")
 
@@ -145,10 +149,7 @@ async def authorize(req: AuthorizeRequest):
     group_row = await get_user_group(req.username)
     if not group_row:
         logger.warning(f"Grup bulunamadı: {req.username}")
-        return AuthorizeResponse(
-            result="reject",
-            username=req.username,
-        )
+        return Response(status_code=404)
 
     groupname = group_row["groupname"]
 
@@ -156,10 +157,7 @@ async def authorize(req: AuthorizeRequest):
     vlan_attrs = await get_group_vlan(groupname)
     if not vlan_attrs:
         logger.warning(f"VLAN bulunamadı: {groupname}")
-        return AuthorizeResponse(
-            result="reject",
-            username=req.username,
-        )
+        return Response(status_code=404)
 
     vlan_id = vlan_attrs.get("Tunnel-Private-Group-Id", "")
     logger.info(
@@ -167,9 +165,10 @@ async def authorize(req: AuthorizeRequest):
         f"grup={groupname} vlan={vlan_id}"
     )
 
-    return AuthorizeResponse(
-        result="accept",
-        username=req.username,
-        vlan=vlan_id,
-        attributes=vlan_attrs,
-    )
+    radius_reply = build_radius_reply(vlan_attrs)
+    radius_reply["reply:Reply-Message"] = {
+        "op": ":=",
+        "value": [f"group={groupname}, vlan={vlan_id}"],
+    }
+
+    return JSONResponse(content=radius_reply)

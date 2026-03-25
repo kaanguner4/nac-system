@@ -82,6 +82,19 @@ async def get_all_active_sessions():
     return sessions
 
 
+async def get_all_blocked_users():
+    """Rate-limit nedeniyle bloklu kullanıcıları ve kalan TTL değerlerini getir"""
+    r = await get_redis()
+    keys = await r.keys("blocked:*")
+    blocked_users = {}
+
+    for key in keys:
+        username = key.split(":", 1)[1]
+        blocked_users[username] = await r.ttl(key)
+
+    return blocked_users
+
+
 
 # Rate limiting - başarısız giriş sayacı
 
@@ -145,4 +158,3 @@ async def reset_failed_attempts(username: str):
     r = await get_redis()
     await r.delete(f"fail:{username}")
     logger.debug(f"Başarısız deneme sayacı sıfırlandı: {username}")
-
