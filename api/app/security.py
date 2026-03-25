@@ -8,6 +8,8 @@ from typing import Any
 
 from fastapi import Cookie, Depends, Header, HTTPException, Response
 
+from app.db.redis import get_session
+
 
 DASHBOARD_SESSION_COOKIE = "nac_dashboard_session"
 DASHBOARD_SESSION_MAX_AGE = 60 * 60 * 12
@@ -87,6 +89,7 @@ def set_dashboard_session_cookie(
         httponly=True,
         max_age=DASHBOARD_SESSION_MAX_AGE,
         samesite="lax",
+        secure=True,
     )
 
 
@@ -104,9 +107,19 @@ async def require_dashboard_user(
         raise HTTPException(status_code=401, detail="Dashboard session required")
 
     try:
-        return decode_dashboard_session_token(nac_dashboard_session)
+        user = decode_dashboard_session_token(nac_dashboard_session)
     except ValueError as exc:
         raise HTTPException(status_code=401, detail=str(exc)) from exc
+
+    session_id = user.get("session_id")
+    if not session_id:
+        raise HTTPException(status_code=401, detail="invalid_dashboard_session")
+
+    session = await get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=401, detail="dashboard_session_inactive")
+
+    return user
 
 
 async def require_admin_dashboard_user(

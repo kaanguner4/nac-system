@@ -1,7 +1,7 @@
 import logging
 import bcrypt as _bcrypt
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from starlette.responses import JSONResponse, Response
 
 from app.db.postgres import get_user, get_user_group, get_group_vlan
@@ -26,6 +26,18 @@ class AuthRequest(BaseModel):
     nas_ip: str = "127.0.0.1"
     calling_station_id: str = ""
 
+    @model_validator(mode="after")
+    def validate_payload(self):
+        self.username = self.username.strip()
+        self.calling_station_id = self.calling_station_id.strip()
+
+        if not self.username:
+            raise ValueError("username_required")
+        if not self.password:
+            raise ValueError("password_required")
+
+        return self
+
 
 class AuthResponse(BaseModel):
     result: str
@@ -35,6 +47,13 @@ class AuthResponse(BaseModel):
 
 class AuthorizeRequest(BaseModel):
     username: str
+
+    @model_validator(mode="after")
+    def validate_payload(self):
+        self.username = self.username.strip()
+        if not self.username:
+            raise ValueError("username_required")
+        return self
 
 
 # ─────────────────────────────────────────
@@ -139,6 +158,7 @@ async def authenticate(req: AuthRequest):
     return AuthResponse(
         result="accept",
         username=req.username,
+        reason="mab_authentication_successful" if is_mab else "pap_authentication_successful",
     )
 
 

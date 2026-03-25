@@ -158,7 +158,7 @@ curl -X POST http://localhost:8000/auth \
 ```
 
 ```json
-{"result": "accept", "username": "admin01", "reason": "PAP authentication successful"}
+{"result": "accept", "username": "admin01", "reason": "pap_authentication_successful"}
 ```
 
 **Authorization (VLAN ataması):**
@@ -172,10 +172,21 @@ curl -X POST http://localhost:8000/authorize \
 
 ```json
 {
-  "reply": {
-    "Tunnel-Type": "13",
-    "Tunnel-Medium-Type": "6",
-    "Tunnel-Private-Group-Id": "10"
+  "reply:Tunnel-Type": {
+    "op": ":=",
+    "value": ["13"]
+  },
+  "reply:Tunnel-Medium-Type": {
+    "op": ":=",
+    "value": ["6"]
+  },
+  "reply:Tunnel-Private-Group-Id": {
+    "op": ":=",
+    "value": ["10"]
+  },
+  "reply:Reply-Message": {
+    "op": ":=",
+    "value": ["group=admin, vlan=10"]
   }
 }
 ```
@@ -189,6 +200,7 @@ curl -X POST http://localhost:8000/accounting \
   -d '{
     "status_type": "Start",
     "session_id": "sess-001",
+    "unique_id": "uniq-001",
     "username": "admin01",
     "nas_ip": "10.0.0.1",
     "calling_station_id": "aa:bb:cc:dd:ee:01",
@@ -198,6 +210,8 @@ curl -X POST http://localhost:8000/accounting \
     "output_octets": "0"
   }'
 ```
+
+`unique_id` gönderilmezse API otomatik olarak `session_id` değerini fallback olarak kullanır.
 
 **Aktif oturumlar:**
 

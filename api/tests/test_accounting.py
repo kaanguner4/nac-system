@@ -6,6 +6,25 @@ from app.routes.accounting import AccountingRequest
 
 
 class AccountingRouteTests(unittest.IsolatedAsyncioTestCase):
+    async def test_accounting_defaults_unique_id_to_session_id_when_field_missing(self):
+        request = AccountingRequest(
+            status_type="Start",
+            session_id="sess-default",
+            username="guest01",
+        )
+
+        with (
+            patch("app.routes.accounting.insert_accounting", AsyncMock()) as insert_mock,
+            patch("app.routes.accounting.set_session", AsyncMock()) as set_mock,
+            patch("app.routes.accounting.delete_session", AsyncMock()),
+        ):
+            await accounting_module.accounting(request)
+
+        insert_payload = insert_mock.await_args.args[0]
+        self.assertEqual(insert_payload["unique_id"], "sess-default")
+        cache_payload = set_mock.await_args.args[1]
+        self.assertEqual(cache_payload["unique_id"], "sess-default")
+
     async def test_accounting_falls_back_to_session_id_when_unique_id_blank(self):
         request = AccountingRequest(
             status_type="Start",

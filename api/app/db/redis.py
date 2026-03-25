@@ -40,6 +40,12 @@ async def get_redis():
     return _redis
 
 
+async def _scan_keys(pattern: str) -> list[str]:
+    """Belirli bir pattern ile eşleşen Redis anahtarlarını topla."""
+    r = await get_redis()
+    return [key async for key in r.scan_iter(pattern)]
+
+
 
 # Session cache - aktif oturumlar
 
@@ -73,7 +79,7 @@ async def delete_session(session_id: str):
 async def get_all_active_sessions():
     """Tüm aktif oturumları listele"""
     r = await get_redis()
-    keys = await r.keys("session:*")
+    keys = await _scan_keys("session:*")
     sessions = []
     for key in keys:
         data = await r.hgetall(key)
@@ -85,7 +91,7 @@ async def get_all_active_sessions():
 async def clear_all_sessions():
     """Redis'teki tüm session cache kayıtlarını sil."""
     r = await get_redis()
-    keys = await r.keys("session:*")
+    keys = await _scan_keys("session:*")
     if keys:
         await r.delete(*keys)
         logger.info("Redis session cache temizlendi: %s kayıt", len(keys))
@@ -94,7 +100,7 @@ async def clear_all_sessions():
 async def get_all_blocked_users():
     """Rate-limit nedeniyle bloklu kullanıcıları ve kalan TTL değerlerini getir"""
     r = await get_redis()
-    keys = await r.keys("blocked:*")
+    keys = await _scan_keys("blocked:*")
     blocked_users = {}
 
     for key in keys:

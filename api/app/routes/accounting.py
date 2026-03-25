@@ -15,7 +15,7 @@ router = APIRouter(dependencies=[Depends(require_api_key)])
 class AccountingRequest(BaseModel):
     status_type: str        # Start, Interim-Update, Stop
     session_id: str
-    unique_id: str
+    unique_id: str = ""
     username: str
     nas_ip: str = ""
     calling_station_id: str = ""

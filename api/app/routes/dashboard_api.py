@@ -1,5 +1,6 @@
 import asyncio
 import json
+import re
 import secrets
 import time
 from typing import Literal
@@ -39,11 +40,25 @@ ROLE_LABELS = {
     "mab": "DEVICE (MAB)",
 }
 
+MAC_ADDRESS_RE = re.compile(r"^[0-9a-f]{2}(?::[0-9a-f]{2}){5}$")
+
 
 class DashboardLoginRequest(BaseModel):
     username: str
     password: str
     calling_station_id: str = ""
+
+    @model_validator(mode="after")
+    def validate_payload(self):
+        self.username = self.username.strip()
+        self.calling_station_id = self.calling_station_id.strip().lower()
+
+        if not self.username:
+            raise ValueError("username_required")
+        if not self.password:
+            raise ValueError("password_required")
+
+        return self
 
 
 class DashboardPulseRequest(BaseModel):
@@ -63,10 +78,15 @@ class DashboardCreateUserRequest(BaseModel):
         self.username = self.username.strip().lower() if self.auth_type == "mab" else self.username.strip()
         self.groupname = self.groupname.strip().lower()
 
+        if not self.username:
+            raise ValueError("username_required")
+
         if self.auth_type == "pap":
             if not self.password:
                 raise ValueError("password_required_for_pap")
         else:
+            if not MAC_ADDRESS_RE.fullmatch(self.username):
+                raise ValueError("invalid_mac_address")
             self.password = self.username
 
         return self

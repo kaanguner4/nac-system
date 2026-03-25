@@ -2,11 +2,25 @@ import json
 import unittest
 from unittest.mock import AsyncMock, patch
 
+from pydantic import ValidationError
+
 from app.routes import auth as auth_module
 from app.routes.auth import AuthRequest, AuthorizeRequest
 
 
 class AuthHelperTests(unittest.TestCase):
+    def test_auth_request_rejects_blank_username(self):
+        with self.assertRaises(ValidationError):
+            AuthRequest(username="   ", password="admin123")
+
+    def test_auth_request_rejects_blank_password(self):
+        with self.assertRaises(ValidationError):
+            AuthRequest(username="admin01", password="")
+
+    def test_authorize_request_rejects_blank_username(self):
+        with self.assertRaises(ValidationError):
+            AuthorizeRequest(username="   ")
+
     def test_verify_password_accepts_valid_bcrypt_hash(self):
         hashed = auth_module.hash_password("admin123")
 
@@ -47,6 +61,7 @@ class AuthRouteTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(response.result, "accept")
         self.assertEqual(response.username, "admin01")
+        self.assertEqual(response.reason, "pap_authentication_successful")
         reset_mock.assert_awaited_once_with("admin01")
 
     async def test_authenticate_returns_429_when_rate_limited(self):
@@ -84,6 +99,7 @@ class AuthRouteTests(unittest.IsolatedAsyncioTestCase):
             response = await auth_module.authenticate(request)
 
         self.assertEqual(response.result, "accept")
+        self.assertEqual(response.reason, "mab_authentication_successful")
         reset_mock.assert_awaited_once_with("aa:bb:cc:dd:ee:ff")
 
     async def test_authenticate_rejects_unknown_user(self):
