@@ -58,6 +58,10 @@ async def accounting(req: AccountingRequest):
             "framed_ip":   req.framed_ip,
             "status":      "active",
             "session_id":  req.session_id,
+            "unique_id":   req.unique_id,
+            "session_time": str(req.session_time),
+            "input_octets": str(req.input_octets),
+            "output_octets": str(req.output_octets),
         })
         logger.info(f"Oturum başladı: {req.username}")
 
@@ -68,6 +72,7 @@ async def accounting(req: AccountingRequest):
             "framed_ip":      req.framed_ip,
             "status":         "active",
             "session_id":     req.session_id,
+            "unique_id":      req.unique_id,
             "session_time":   str(req.session_time),
             "input_octets":   str(req.input_octets),
             "output_octets":  str(req.output_octets),

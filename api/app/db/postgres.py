@@ -99,6 +99,25 @@ async def get_all_users():
         )
 
 
+def _serialize_accounting_row(row) -> dict:
+    return {
+        "session_id": row["acctsessionid"],
+        "unique_id": row["acctuniqueid"],
+        "username": row["username"],
+        "status_type": row["acctstatustype"],
+        "nas_ip": row["nasipaddress"],
+        "calling_station_id": row["callingstationid"],
+        "framed_ip": row["framedipaddress"],
+        "start_time": row["acctstarttime"],
+        "update_time": row["acctupdatetime"],
+        "stop_time": row["acctstoptime"],
+        "last_activity": row["last_activity"],
+        "session_time": row["acctsessiontime"],
+        "input_octets": row["acctinputoctets"],
+        "output_octets": row["acctoutputoctets"],
+    }
+
+
 async def get_latest_accounting_by_user():
     """Her kullanıcı için en güncel accounting kaydını getir."""
     pool = await get_db()
@@ -132,24 +151,46 @@ async def get_latest_accounting_by_user():
             """
         )
 
-    return {
-        row["username"]: {
-            "session_id": row["acctsessionid"],
-            "unique_id": row["acctuniqueid"],
-            "status_type": row["acctstatustype"],
-            "nas_ip": row["nasipaddress"],
-            "calling_station_id": row["callingstationid"],
-            "framed_ip": row["framedipaddress"],
-            "start_time": row["acctstarttime"],
-            "update_time": row["acctupdatetime"],
-            "stop_time": row["acctstoptime"],
-            "last_activity": row["last_activity"],
-            "session_time": row["acctsessiontime"],
-            "input_octets": row["acctinputoctets"],
-            "output_octets": row["acctoutputoctets"],
-        }
-        for row in rows
-    }
+    return {row["username"]: _serialize_accounting_row(row) for row in rows}
+
+
+async def get_active_accounting_sessions():
+    """radacct tablosundan halen aktif görünen oturumları getir."""
+    pool = await get_db()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT
+                acctsessionid,
+                acctuniqueid,
+                username,
+                acctstatustype,
+                nasipaddress,
+                callingstationid,
+                framedipaddress,
+                acctstarttime,
+                acctupdatetime,
+                acctstoptime,
+                acctsessiontime,
+                acctinputoctets,
+                acctoutputoctets,
+                COALESCE(acctupdatetime, acctstarttime) AS last_activity
+            FROM radacct
+            WHERE acctstoptime IS NULL
+              AND acctstatustype IN ('Start', 'Interim-Update')
+            ORDER BY
+                COALESCE(acctupdatetime, acctstarttime) DESC NULLS LAST,
+                radacctid DESC
+            """
+        )
+
+    sessions = []
+    for row in rows:
+        session = _serialize_accounting_row(row)
+        session["status"] = "active"
+        sessions.append(session)
+
+    return sessions
 
 
 async def insert_accounting(data: dict):

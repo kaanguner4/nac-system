@@ -82,6 +82,15 @@ async def get_all_active_sessions():
     return sessions
 
 
+async def clear_all_sessions():
+    """Redis'teki tüm session cache kayıtlarını sil."""
+    r = await get_redis()
+    keys = await r.keys("session:*")
+    if keys:
+        await r.delete(*keys)
+        logger.info("Redis session cache temizlendi: %s kayıt", len(keys))
+
+
 async def get_all_blocked_users():
     """Rate-limit nedeniyle bloklu kullanıcıları ve kalan TTL değerlerini getir"""
     r = await get_redis()
