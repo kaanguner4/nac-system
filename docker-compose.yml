@@ -84,12 +84,8 @@ services:
     environment:
       RADIUS_SHARED_SECRET: ${RADIUS_SHARED_SECRET}
       API_SECRET_KEY: ${API_SECRET_KEY}
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - ./freeradius/clients.conf:/etc/freeradius/clients.conf
-      - ./freeradius/mods-enabled/sql:/etc/freeradius/mods-enabled/sql
       - ./freeradius/mods-enabled/rest:/etc/freeradius/mods-enabled/rest
       - ./freeradius/sites-enabled/default:/etc/freeradius/sites-enabled/default
     networks:
