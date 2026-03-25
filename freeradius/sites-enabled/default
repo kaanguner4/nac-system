@@ -19,13 +19,6 @@ server default {
         filter_username
         preprocess
 
-        # MAB tespiti — username MAC adresi formatındaysa
-        if ("%{User-Name}" =~ /^([0-9a-f]{2}[:-]){5}[0-9a-f]{2}$/i) {
-            update control {
-                Auth-Type := Accept
-            }
-        }
-
         # FastAPI policy engine'den VLAN/policy attribute'larını al
         rest
 
@@ -33,8 +26,13 @@ server default {
             reject
         }
 
-        # PAP isteklerinde Auth-Type PAP olarak işaretle
-        pap
+        # User-Password taşıyan tüm istekleri REST tabanlı auth hattına ver.
+        # Böylece PAP ve MAB kararını aynı FastAPI endpoint'i verir.
+        if (&User-Password) {
+            update control {
+                Auth-Type := PAP
+            }
+        }
     }
 
     # ─────────────────────────────────────────
@@ -42,14 +40,9 @@ server default {
     # ─────────────────────────────────────────
     authenticate {
 
-        # Normal PAP girişi — FastAPI /auth'a sor
+        # PAP ve MAB doğrulamasının tek karar merkezi FastAPI /auth olsun
         Auth-Type PAP {
             rest
-        }
-
-        # MAB girişi — MAC kayıtlıysa direkt kabul
-        Auth-Type Accept {
-            ok
         }
     }
 
@@ -63,5 +56,12 @@ server default {
     # ─────────────────────────────────────────
     # POST-AUTH — giriş sonrası işlemler
     # ─────────────────────────────────────────
-    post-auth {}
+    post-auth {
+        Post-Auth-Type REJECT {
+            update reply {
+                Reply-Message := "Access denied"
+            }
+            attr_filter.access_reject
+        }
+    }
 }
