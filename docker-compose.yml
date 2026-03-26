@@ -58,6 +58,7 @@ services:
       API_SECRET_KEY: ${API_SECRET_KEY}
     volumes:
       - ./api:/app
+      - ./test_nac.py:/test_nac.py:ro
     networks:
       - nac_network
     depends_on:

@@ -296,13 +296,14 @@ Acct-Output-Octets = 2048\n" \
 ### Unit Testler
 
 ```bash
-docker exec nac_api python -m pytest api/tests/ -v
+docker exec nac_api python -m pytest tests/ -v
 ```
 
 Test dosyaları:
 - `api/tests/test_auth.py` — Kimlik doğrulama ve rate limiting
 - `api/tests/test_users.py` — Kullanıcı listeleme ve oturum birleştirme
 - `api/tests/test_accounting.py` — Accounting akışı
+- `api/tests/test_dashboard_api.py` — Dashboard doğrulama ve oturum güvenliği
 
 ### Entegrasyon Testleri
 
