@@ -297,9 +297,13 @@ async def insert_accounting(data: dict):
                 acctsessiontime    = $8,
                 acctinputoctets    = $9,
                 acctoutputoctets   = $10,
-                acctstoptime       = CASE
-                    WHEN EXCLUDED.acctstatustype = 'Stop'
+                acctstarttime      = CASE
+                    WHEN EXCLUDED.acctstatustype = 'Start'
                     THEN NOW()
+                    ELSE radacct.acctstarttime END,
+                acctstoptime       = CASE
+                    WHEN EXCLUDED.acctstatustype = 'Stop'  THEN NOW()
+                    WHEN EXCLUDED.acctstatustype = 'Start' THEN NULL
                     ELSE radacct.acctstoptime END
             """,
             data.get("session_id"),

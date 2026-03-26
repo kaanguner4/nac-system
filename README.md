@@ -240,23 +240,13 @@ Beklenen çıktıda `Access-Accept` ve `Tunnel-Private-Group-Id:0 = "10"` görü
 **Bilinen cihaz — kabul:**
 
 ```bash
-docker exec nac_freeradius sh -lc '
-  printf "User-Name = \"aa:bb:cc:dd:ee:ff\"\n
-User-Password = \"aa:bb:cc:dd:ee:ff\"\n
-Calling-Station-Id = \"aa:bb:cc:dd:ee:ff\"\n
-NAS-IP-Address = 127.0.0.1\n" \
-  | radclient -x 127.0.0.1 auth "$RADIUS_SHARED_SECRET"'
+docker exec nac_freeradius sh -lc 'printf "User-Name = \"aa:bb:cc:dd:ee:ff\"\nUser-Password = \"aa:bb:cc:dd:ee:ff\"\nCalling-Station-Id = \"aa:bb:cc:dd:ee:ff\"\nNAS-IP-Address = 127.0.0.1\n" | radclient -x 127.0.0.1 auth "$RADIUS_SHARED_SECRET"'
 ```
 
 **Bilinmeyen cihaz — red:**
 
 ```bash
-docker exec nac_freeradius sh -lc '
-  printf "User-Name = \"de:ad:be:ef:00:01\"\n
-User-Password = \"de:ad:be:ef:00:01\"\n
-Calling-Station-Id = \"de:ad:be:ef:00:01\"\n
-NAS-IP-Address = 127.0.0.1\n" \
-  | radclient -x 127.0.0.1 auth "$RADIUS_SHARED_SECRET"'
+docker exec nac_freeradius sh -lc 'printf "User-Name = \"de:ad:be:ef:00:01\"\nUser-Password = \"de:ad:be:ef:00:01\"\nCalling-Station-Id = \"de:ad:be:ef:00:01\"\nNAS-IP-Address = 127.0.0.1\n" | radclient -x 127.0.0.1 auth "$RADIUS_SHARED_SECRET"'
 ```
 
 Beklenen: `Access-Reject` ve `Reply-Message = "Access denied"`.
@@ -265,28 +255,10 @@ Beklenen: `Access-Reject` ve `Reply-Message = "Access denied"`.
 
 ```bash
 # Accounting-Start
-docker exec nac_freeradius sh -lc '
-  printf "Acct-Status-Type = Start\n
-User-Name = \"guest01\"\n
-Acct-Session-Id = \"test-session-1\"\n
-NAS-IP-Address = 10.0.0.20\n
-Calling-Station-Id = \"cc:cc:cc:cc:cc:cc\"\n
-Framed-IP-Address = 192.168.1.30\n
-Acct-Session-Time = 0\n
-Acct-Input-Octets = 0\n
-Acct-Output-Octets = 0\n" \
-  | radclient -x 127.0.0.1:1813 acct "$RADIUS_SHARED_SECRET"'
+docker exec nac_freeradius sh -lc 'printf "Acct-Status-Type = Start\nUser-Name = \"guest01\"\nAcct-Session-Id = \"test-session-1\"\nNAS-IP-Address = 10.0.0.20\nCalling-Station-Id = \"cc:cc:cc:cc:cc:cc\"\nFramed-IP-Address = 192.168.1.30\nAcct-Session-Time = 0\nAcct-Input-Octets = 0\nAcct-Output-Octets = 0\n" | radclient -x 127.0.0.1:1813 acct "$RADIUS_SHARED_SECRET"'
 
 # Accounting-Stop
-docker exec nac_freeradius sh -lc '
-  printf "Acct-Status-Type = Stop\n
-User-Name = \"guest01\"\n
-Acct-Session-Id = \"test-session-1\"\n
-NAS-IP-Address = 10.0.0.20\n
-Acct-Session-Time = 300\n
-Acct-Input-Octets = 1024\n
-Acct-Output-Octets = 2048\n" \
-  | radclient -x 127.0.0.1:1813 acct "$RADIUS_SHARED_SECRET"'
+docker exec nac_freeradius sh -lc 'printf "Acct-Status-Type = Stop\nUser-Name = \"guest01\"\nAcct-Session-Id = \"test-session-1\"\nNAS-IP-Address = 10.0.0.20\nAcct-Session-Time = 300\nAcct-Input-Octets = 1024\nAcct-Output-Octets = 2048\n" | radclient -x 127.0.0.1:1813 acct "$RADIUS_SHARED_SECRET"'
 ```
 
 ---
